@@ -1,0 +1,55 @@
+{
+  "expo": {
+    "name": "ZocaloTrade",
+    "slug": "zocalotrade",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "automatic",
+"newArchEnabled": false,
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#FF6B35"
+      },
+      "edgeToEdgeEnabled": false,
+      "package": "com.zocalotrade.app"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.zocalotrade.app"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#FF6B35"
+      },
+      "edgeToEdgeEnabled": true,
+      "package": "com.zocalotrade.app"
+    },
+    "web": {
+      "favicon": "./assets/favicon.png",
+      "bundler": "metro"
+    },
+    "plugins": [
+      "expo-router",
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "Allow ZocaloTrade to use your location to find nearby merchants."
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Allow ZocaloTrade to access your photos to upload product images.",
+          "cameraPermission": "Allow ZocaloTrade to use your camera to take product photos."
+        }
+      ],
+      "expo-notifications"
+    ],
+    "experiments": {
+      "typedRoutes": true
+    }
+  }
+}
