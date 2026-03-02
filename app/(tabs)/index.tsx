@@ -5,12 +5,13 @@ import { useStore } from '../../src/store/useStore';
 import { useState } from 'react';
 
 export default function HomeScreen() {
-  const { addToCarrito } = useStore();
+  const { addToCarrito, favoritos, toggleFavorito, productos } = useStore();
   const [categoriaSeleccionada, setCategoriaSeleccionada] = useState('Todos');
 
+  const allProducts = productos.length > 0 ? productos : MOCK_PRODUCTOS;
   const productosFiltrados = categoriaSeleccionada === 'Todos' 
-    ? MOCK_PRODUCTOS
-    : MOCK_PRODUCTOS.filter(p => p.categoria === categoriaSeleccionada);
+    ? allProducts
+    : allProducts.filter(p => p.categoria === categoriaSeleccionada);
 
   const tiendasMostrar = MOCK_TIENDAS;
 
@@ -47,30 +48,41 @@ export default function HomeScreen() {
 
       <Text style={styles.sectionTitle}>Productos Destacados</Text>
       <View style={styles.productosGrid}>
-        {productosFiltrados.slice(0, 6).map((producto) => (
-          <TouchableOpacity
-            key={producto.id}
-            style={styles.productoCard}
-            onPress={() => router.push(`/producto/${producto.id}`)}
-          >
-            <Image 
-              source={{ uri: producto.fotos?.[0] || producto.foto }} 
-              style={styles.productoImage} 
-            />
-            <Text style={styles.productoNombre} numberOfLines={1}>{producto.nombre}</Text>
-            <Text style={styles.productoDesc} numberOfLines={2}>{producto.descripcion}</Text>
-            <Text style={styles.productoPrecio}>${producto.precio}</Text>
-            <TouchableOpacity 
-              style={styles.agregarBtn} 
-              onPress={(e) => {
-                e.stopPropagation();
-                addToCarrito(producto);
-              }}
+        {productosFiltrados.slice(0, 6).map((producto) => {
+          const isFavorite = favoritos.includes(producto.id);
+          return (
+            <TouchableOpacity
+              key={producto.id}
+              style={styles.productoCard}
+              onPress={() => router.push(`/producto/${producto.id}`)}
             >
-              <Text style={styles.agregarBtnText}>Agregar</Text>
+              <View style={styles.imageContainer}>
+                <Image 
+                  source={{ uri: producto.fotos?.[0] || producto.foto }} 
+                  style={styles.productoImage} 
+                />
+                <TouchableOpacity 
+                  style={styles.favoriteBtn}
+                  onPress={() => toggleFavorito(producto.id)}
+                >
+                  <Text style={styles.favoriteIcon}>{isFavorite ? '❤️' : '🤍'}</Text>
+                </TouchableOpacity>
+              </View>
+              <Text style={styles.productoNombre} numberOfLines={1}>{producto.nombre}</Text>
+              <Text style={styles.productoDesc} numberOfLines={2}>{producto.descripcion}</Text>
+              <Text style={styles.productoPrecio}>${producto.precio}</Text>
+              <TouchableOpacity 
+                style={styles.agregarBtn} 
+                onPress={(e) => {
+                  e.stopPropagation();
+                  addToCarrito(producto);
+                }}
+              >
+                <Text style={styles.agregarBtnText}>Agregar</Text>
+              </TouchableOpacity>
             </TouchableOpacity>
-          </TouchableOpacity>
-        ))}
+          );
+        })}
       </View>
 
       <TouchableOpacity style={styles.promoBanner} onPress={() => router.push('/promociones')}>
@@ -99,7 +111,10 @@ const styles = StyleSheet.create({
   tiendaRating: { color: '#666', fontSize: 12, marginTop: 4 },
   productosGrid: { flexDirection: 'row', flexWrap: 'wrap', padding: 8 },
   productoCard: { width: '47%', backgroundColor: '#ffffff', borderRadius: 12, margin: '1.5%', padding: 10, elevation: 2 },
+  imageContainer: { position: 'relative' },
   productoImage: { width: '100%', height: 120, borderRadius: 8 },
+  favoriteBtn: { position: 'absolute', top: 5, right: 5, backgroundColor: 'rgba(255,255,255,0.9)', borderRadius: 15, padding: 5 },
+  favoriteIcon: { fontSize: 16 },
   productoNombre: { fontSize: 14, fontWeight: 'bold', marginTop: 8, color: '#333' },
   productoDesc: { fontSize: 11, color: '#666', marginTop: 2 },
   productoPrecio: { fontSize: 16, fontWeight: 'bold', color: '#FF6B35', marginTop: 5 },
