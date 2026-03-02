@@ -69,6 +69,25 @@ export default function SeguimientoPedidoScreen() {
 
   const currentIndex = getCurrentEtapaIndex();
 
+  const handleCancelarPedido = () => {
+    Alert.alert(
+      'Cancelar Pedido',
+      '¿Estás seguro de que quieres cancelar este pedido?',
+      [
+        { text: 'No', style: 'cancel' },
+        { 
+          text: 'Sí, Cancelar', 
+          style: 'destructive',
+          onPress: () => {
+            updatePedido(pedido.id, { status: 'cancelado' });
+            Alert.alert('Pedido Cancelado', 'Tu pedido ha sido cancelado');
+            router.push('/pedidos');
+          }
+        },
+      ]
+    );
+  };
+
   return (
     <ScrollView style={styles.container}>
       <View style={styles.header}>
@@ -151,22 +170,16 @@ export default function SeguimientoPedidoScreen() {
             </Text>
           </View>
         ) : (
-          <>
-            <View style={styles.resumenRow}>
-              <Text style={styles.resumenLabel}>Productos</Text>
-              <Text style={styles.resumenValue}>${pedido.subtotal?.toFixed(2) || pedido.total.toFixed(2)}</Text>
-            </View>
-            <View style={styles.resumenRow}>
-              <Text style={styles.resumenLabel}>Comisión</Text>
-              <Text style={styles.resumenValue}>${pedido.comision?.toFixed(2) || '0.00'}</Text>
-            </View>
-          </>
+          <View style={styles.resumenRow}>
+            <Text style={styles.resumenLabel}>Productos</Text>
+            <Text style={styles.resumenValue}>${pedido.subtotal?.toFixed(2) || pedido.total.toFixed(2)}</Text>
+          </View>
         )}
         
         <View style={[styles.resumenRow, styles.totalRow]}>
           <Text style={styles.totalLabel}>Total</Text>
           <Text style={styles.totalValue}>
-            ${((pedido.subtotal || 0) + (pedido.comision || 0)).toFixed(2)}
+            ${(pedido.subtotal || pedido.total).toFixed(2)}
           </Text>
         </View>
       </View>
@@ -190,6 +203,15 @@ export default function SeguimientoPedidoScreen() {
       </View>
 
       <View style={styles.actions}>
+        {pedido.status === 'pendiente' && (
+          <TouchableOpacity 
+            style={styles.cancelarBtn}
+            onPress={handleCancelarPedido}
+          >
+            <Text style={styles.cancelarBtnText}>❌ Cancelar Pedido</Text>
+          </TouchableOpacity>
+        )}
+        
         <TouchableOpacity 
           style={styles.secondaryBtn}
           onPress={() => router.push('/pedidos')}
@@ -363,7 +385,15 @@ const styles = StyleSheet.create({
   productoNombre: { flex: 1, fontSize: 14 },
   productoCantidad: { color: '#666', marginRight: 15 },
   productoPrecio: { fontWeight: '600', color: '#FF6B35' },
-  actions: { padding: 15, paddingBottom: 40 },
+  actions: { padding: 15, paddingBottom: Math.max(40, insets.bottom + 20) },
+  cancelarBtn: {
+    backgroundColor: '#e74c3c',
+    padding: 15,
+    borderRadius: 10,
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  cancelarBtnText: { color: '#fff', fontWeight: '600', fontSize: 16 },
   secondaryBtn: {
     backgroundColor: '#fff',
     padding: 15,
