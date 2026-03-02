@@ -12,57 +12,60 @@ export default function LoginScreen() {
   const [nombre, setNombre] = useState('');
   const [loading, setLoading] = useState(false);
 
-  // Verificar sesión al cargar (para OAuth callback)
+  // Verificar sesión al cargar la página
   useEffect(() => {
-    const checkSession = async () => {
-      // Primero verificar si hay sesión activa
-      const { data: { session } } = await supabase.auth.getSession();
-      
-      if (session) {
-        await handleSession(session);
-        return;
-      }
-      
-      // Sino, escuchar cambios en autenticación
-      const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+    const checkAuth = async () => {
+      try {
+        // Intentar recuperar la sesión
+        const { data: { session }, error } = await supabase.auth.getSession();
+        
         if (session) {
           await handleSession(session);
+        } else if (error) {
+          console.log('No session found');
         }
-      });
-      
-      return () => subscription.unsubscribe();
+        
+        // También escuchar cambios en auth
+        const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+          if (session) {
+            await handleSession(session);
+          }
+        });
+        
+        return () => subscription.unsubscribe();
+      } catch (error) {
+        console.error('Auth check error:', error);
+      }
     };
     
-    checkSession();
+    checkAuth();
   }, []);
 
   const handleSession = async (session: any) => {
     try {
       // Obtener o crear perfil
-      let { data: perfil } = await supabase
+      const { data: perfil } = await supabase
         .from('perfiles')
         .select('*')
         .eq('id', session.user.id)
         .single();
       
       // Si no existe perfil, crearlo
-      if (!perfil) {
+      if (!perfil && session.user.email) {
         const nombre = session.user.user_metadata?.full_name || 
                       session.user.user_metadata?.name || 
-                      session.user.email?.split('@')[0] || 'Usuario';
+                      session.user.email.split('@')[0];
         
         await supabase.from('perfiles').insert({
           id: session.user.id,
           nombre: nombre,
           email: session.user.email,
         });
-        
-        perfil = { nombre };
       }
       
       setUser({
         id: session.user.id,
-        nombre: perfil?.nombre || session.user.email?.split('@')[0] || 'Usuario',
+        nombre: perfil?.nombre || session.user.user_metadata?.full_name || session.user.email?.split('@')[0] || 'Usuario',
         email: session.user.email,
       });
       
@@ -165,22 +168,19 @@ export default function LoginScreen() {
   const handleGoogleLogin = async () => {
     try {
       setLoading(true);
+      
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: 'https://zocalotrade.vercel.app/?authenticated=true',
-          skipBrowserRedirect: false,
+          redirectTo: 'https://zocalotrade.vercel.app/',
         },
       });
+      
       if (error) throw error;
       
-      // Forzar redirección si no ocurre automáticamente
-      if (data?.url) {
-        window.location.href = data.url;
-      }
+      // El redirect ocurre automáticamente
     } catch (error: any) {
       Alert.alert('Error', 'No se pudo iniciar sesión con Google: ' + error.message);
-    } finally {
       setLoading(false);
     }
   };
@@ -188,21 +188,18 @@ export default function LoginScreen() {
   const handleFacebookLogin = async () => {
     try {
       setLoading(true);
+      
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'facebook',
         options: {
-          redirectTo: 'https://zocalotrade.vercel.app/?authenticated=true',
-          skipBrowserRedirect: false,
+          redirectTo: 'https://zocalotrade.vercel.app/',
         },
       });
+      
       if (error) throw error;
       
-      if (data?.url) {
-        window.location.href = data.url;
-      }
     } catch (error: any) {
       Alert.alert('Error', 'No se pudo iniciar sesión con Facebook: ' + error.message);
-    } finally {
       setLoading(false);
     }
   };
