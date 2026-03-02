@@ -1,7 +1,60 @@
 import { Stack } from 'expo-router';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { useEffect } from 'react';
+import { supabase } from '../src/services/supabase';
+import { useStore } from '../src/store/useStore';
 
 export default function RootLayout() {
+  const { setUser } = useStore();
+
+  // Verificar sesión al cargar la app
+  useEffect(() => {
+    const checkSession = async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        
+        if (session) {
+          const { data: perfil } = await supabase
+            .from('perfiles')
+            .select('*')
+            .eq('id', session.user.id)
+            .single();
+          
+          setUser({
+            id: session.user.id,
+            nombre: perfil?.nombre || session.user.email?.split('@')[0] || 'Usuario',
+            email: session.user.email,
+          });
+        }
+      } catch (error) {
+        console.error('Session check error:', error);
+      }
+    };
+    
+    checkSession();
+    
+    // Escuchar cambios en auth
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (session) {
+        const { data: perfil } = await supabase
+          .from('perfiles')
+          .select('*')
+          .eq('id', session.user.id)
+          .single();
+        
+        setUser({
+          id: session.user.id,
+          nombre: perfil?.nombre || session.user.email?.split('@')[0] || 'Usuario',
+          email: session.user.email,
+        });
+      } else {
+        setUser(null);
+      }
+    });
+    
+    return () => subscription.unsubscribe();
+  }, []);
+
   return (
     <SafeAreaProvider>
       <Stack

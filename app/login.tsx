@@ -5,75 +5,19 @@ import { supabase } from '../src/services/supabase';
 import { useStore } from '../src/store/useStore';
 
 export default function LoginScreen() {
-  const { setUser } = useStore();
+  const { setUser, user } = useStore();
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [nombre, setNombre] = useState('');
   const [loading, setLoading] = useState(false);
 
-  // Verificar sesión al cargar la página
+  // Si ya hay usuario logueado, redirigir
   useEffect(() => {
-    const checkAuth = async () => {
-      try {
-        // Intentar recuperar la sesión
-        const { data: { session }, error } = await supabase.auth.getSession();
-        
-        if (session) {
-          await handleSession(session);
-        } else if (error) {
-          console.log('No session found');
-        }
-        
-        // También escuchar cambios en auth
-        const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-          if (session) {
-            await handleSession(session);
-          }
-        });
-        
-        return () => subscription.unsubscribe();
-      } catch (error) {
-        console.error('Auth check error:', error);
-      }
-    };
-    
-    checkAuth();
-  }, []);
-
-  const handleSession = async (session: any) => {
-    try {
-      // Obtener o crear perfil
-      const { data: perfil } = await supabase
-        .from('perfiles')
-        .select('*')
-        .eq('id', session.user.id)
-        .single();
-      
-      // Si no existe perfil, crearlo
-      if (!perfil && session.user.email) {
-        const nombre = session.user.user_metadata?.full_name || 
-                      session.user.user_metadata?.name || 
-                      session.user.email.split('@')[0];
-        
-        await supabase.from('perfiles').insert({
-          id: session.user.id,
-          nombre: nombre,
-          email: session.user.email,
-        });
-      }
-      
-      setUser({
-        id: session.user.id,
-        nombre: perfil?.nombre || session.user.user_metadata?.full_name || session.user.email?.split('@')[0] || 'Usuario',
-        email: session.user.email,
-      });
-      
+    if (user) {
       router.replace('/(tabs)');
-    } catch (error) {
-      console.error('Error handling session:', error);
     }
-  };
+  }, [user]);
 
   const handleSubmit = async () => {
     if (!email || !password) {
