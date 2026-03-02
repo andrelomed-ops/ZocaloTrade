@@ -7,7 +7,8 @@ export default function CarritoScreen() {
 
   const subtotal = carrito.reduce((sum, item) => sum + item.producto.precio * item.cantidad, 0);
   const comision = subtotal * 0.1;
-  const total = subtotal + comision;
+  const total = subtotal; // El cliente paga solo el subtotal
+  const montoVendedor = subtotal - comision; // El vendedor recibe esto (90%)
 
   const handleCheckout = () => {
     if (carrito.length === 0) {
@@ -53,12 +54,16 @@ export default function CarritoScreen() {
           <Text style={styles.resumenLabel}>Subtotal</Text>
           <Text style={styles.resumenValue}>${subtotal.toFixed(2)}</Text>
         </View>
+        <View style={[styles.resumenRow, { backgroundColor: '#e8f5e9', padding: 8, borderRadius: 8 }]}>
+          <Text style={[styles.resumenLabel, { color: '#2e7d32' }]}>💡 Comisión (10%)</Text>
+          <Text style={[styles.resumenValue, { color: '#2e7d32' }]}>-${comision.toFixed(2)}</Text>
+        </View>
         <View style={styles.resumenRow}>
-          <Text style={styles.resumenLabel}>Comisión (10%)</Text>
-          <Text style={styles.resumenValue}>${comision.toFixed(2)}</Text>
+          <Text style={[styles.resumenLabel, { fontSize: 12, color: '#666' }]}>El vendedor recibe:</Text>
+          <Text style={[styles.resumenValue, { fontSize: 12, color: '#666' }]}>${montoVendedor.toFixed(2)}</Text>
         </View>
         <View style={[styles.resumenRow, styles.totalRow]}>
-          <Text style={styles.totalLabel}>Total</Text>
+          <Text style={styles.totalLabel}>Total a pagar</Text>
           <Text style={styles.totalValue}>${total.toFixed(2)}</Text>
         </View>
 
