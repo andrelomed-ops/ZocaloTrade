@@ -15,26 +15,62 @@ export default function LoginScreen() {
   // Verificar sesión al cargar (para OAuth callback)
   useEffect(() => {
     const checkSession = async () => {
+      // Primero verificar si hay sesión activa
       const { data: { session } } = await supabase.auth.getSession();
+      
       if (session) {
-        const { data: perfil } = await supabase
-          .from('perfiles')
-          .select('*')
-          .eq('id', session.user.id)
-          .single();
-        
-        setUser({
-          id: session.user.id,
-          nombre: perfil?.nombre || session.user.email?.split('@')[0] || 'Usuario',
-          email: session.user.email,
-        });
-        
-        router.replace('/(tabs)');
+        await handleSession(session);
+        return;
       }
+      
+      // Sino, escuchar cambios en autenticación
+      const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+        if (session) {
+          await handleSession(session);
+        }
+      });
+      
+      return () => subscription.unsubscribe();
     };
     
     checkSession();
   }, []);
+
+  const handleSession = async (session: any) => {
+    try {
+      // Obtener o crear perfil
+      let { data: perfil } = await supabase
+        .from('perfiles')
+        .select('*')
+        .eq('id', session.user.id)
+        .single();
+      
+      // Si no existe perfil, crearlo
+      if (!perfil) {
+        const nombre = session.user.user_metadata?.full_name || 
+                      session.user.user_metadata?.name || 
+                      session.user.email?.split('@')[0] || 'Usuario';
+        
+        await supabase.from('perfiles').insert({
+          id: session.user.id,
+          nombre: nombre,
+          email: session.user.email,
+        });
+        
+        perfil = { nombre };
+      }
+      
+      setUser({
+        id: session.user.id,
+        nombre: perfil?.nombre || session.user.email?.split('@')[0] || 'Usuario',
+        email: session.user.email,
+      });
+      
+      router.replace('/(tabs)');
+    } catch (error) {
+      console.error('Error handling session:', error);
+    }
+  };
 
   const handleSubmit = async () => {
     if (!email || !password) {
