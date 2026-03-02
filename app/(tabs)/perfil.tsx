@@ -82,8 +82,7 @@ export default function PerfilScreen() {
 
         <View style={styles.footer}>
           <Text style={styles.footerText}>ZocaloTrade v1.0.0</Text>
-          <Text style={styles.footerText}>Comisión: 10% por venta</Text>
-          <Text style={styles.footerText}>© 2024 ZocaloTrade</Text>
+          <Text style={styles.footerText}>© 2026 ZocaloTrade</Text>
         </View>
       </ScrollView>
     );
@@ -228,8 +227,7 @@ export default function PerfilScreen() {
 
       <View style={styles.footer}>
         <Text style={styles.footerText}>ZocaloTrade v1.0.0</Text>
-        <Text style={styles.footerText}>Comisión: 10% por venta</Text>
-        <Text style={styles.footerText}>© 2024 ZocaloTrade</Text>
+        <Text style={styles.footerText}>© 2026 ZocaloTrade</Text>
       </View>
     </ScrollView>
   );
