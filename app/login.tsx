@@ -1,6 +1,6 @@
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, KeyboardAvoidingView, Platform, Alert } from 'react-native';
 import { router } from 'expo-router';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { supabase } from '../src/services/supabase';
 import { useStore } from '../src/store/useStore';
 
@@ -11,6 +11,30 @@ export default function LoginScreen() {
   const [password, setPassword] = useState('');
   const [nombre, setNombre] = useState('');
   const [loading, setLoading] = useState(false);
+
+  // Verificar sesión al cargar (para OAuth callback)
+  useEffect(() => {
+    const checkSession = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) {
+        const { data: perfil } = await supabase
+          .from('perfiles')
+          .select('*')
+          .eq('id', session.user.id)
+          .single();
+        
+        setUser({
+          id: session.user.id,
+          nombre: perfil?.nombre || session.user.email?.split('@')[0] || 'Usuario',
+          email: session.user.email,
+        });
+        
+        router.replace('/(tabs)');
+      }
+    };
+    
+    checkSession();
+  }, []);
 
   const handleSubmit = async () => {
     if (!email || !password) {
@@ -105,13 +129,19 @@ export default function LoginScreen() {
   const handleGoogleLogin = async () => {
     try {
       setLoading(true);
-      const { error } = await supabase.auth.signInWithOAuth({
+      const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: 'https://zocalotrade.vercel.app/',
+          redirectTo: 'https://zocalotrade.vercel.app/?authenticated=true',
+          skipBrowserRedirect: false,
         },
       });
       if (error) throw error;
+      
+      // Forzar redirección si no ocurre automáticamente
+      if (data?.url) {
+        window.location.href = data.url;
+      }
     } catch (error: any) {
       Alert.alert('Error', 'No se pudo iniciar sesión con Google: ' + error.message);
     } finally {
@@ -122,13 +152,18 @@ export default function LoginScreen() {
   const handleFacebookLogin = async () => {
     try {
       setLoading(true);
-      const { error } = await supabase.auth.signInWithOAuth({
+      const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'facebook',
         options: {
-          redirectTo: 'https://zocalotrade.vercel.app/',
+          redirectTo: 'https://zocalotrade.vercel.app/?authenticated=true',
+          skipBrowserRedirect: false,
         },
       });
       if (error) throw error;
+      
+      if (data?.url) {
+        window.location.href = data.url;
+      }
     } catch (error: any) {
       Alert.alert('Error', 'No se pudo iniciar sesión con Facebook: ' + error.message);
     } finally {
