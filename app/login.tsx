@@ -33,7 +33,15 @@ export default function LoginScreen() {
           password,
         });
 
-        if (error) throw error;
+        if (error) {
+          if (error.message.includes('Invalid login credentials')) {
+            throw new Error('Correo o contraseña incorrectos');
+          }
+          if (error.message.includes('Email not confirmed')) {
+            throw new Error('Por favor confirma tu correo electrónico');
+          }
+          throw error;
+        }
 
         // Obtener perfil
         const { data: perfil } = await supabase
@@ -58,22 +66,32 @@ export default function LoginScreen() {
           password,
         });
 
-        if (error) throw error;
+        if (error) {
+          if (error.message.includes('User already registered')) {
+            throw new Error('Este correo ya está registrado');
+          }
+          if (error.message.includes('Password')) {
+            throw new Error('La contraseña debe tener al menos 6 caracteres');
+          }
+          throw error;
+        }
 
         // Crear perfil
-        await supabase.from('perfiles').insert({
-          id: data.user!.id,
-          nombre,
-          email,
-        });
+        if (data.user) {
+          await supabase.from('perfiles').insert({
+            id: data.user.id,
+            nombre,
+            email,
+          });
 
-        setUser({
-          id: data.user!.id,
-          nombre,
-          email,
-        });
+          setUser({
+            id: data.user.id,
+            nombre,
+            email,
+          });
+        }
 
-        Alert.alert('¡Cuenta creada!', 'Tu cuenta ha sido creada exitosamente');
+        Alert.alert('¡Cuenta creada!', 'Revisa tu correo para confirmar tu cuenta');
       }
 
       router.replace('/(tabs)');
@@ -86,20 +104,58 @@ export default function LoginScreen() {
 
   const handleGoogleLogin = async () => {
     try {
+      setLoading(true);
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: 'com.zocalotrade.app://oauth-callback',
+          redirectTo: 'https://zocalotrade.vercel.app/',
         },
       });
       if (error) throw error;
     } catch (error: any) {
-      Alert.alert('Error', 'No se pudo iniciar sesión con Google');
+      Alert.alert('Error', 'No se pudo iniciar sesión con Google: ' + error.message);
+    } finally {
+      setLoading(false);
     }
   };
 
-  const handleFacebookLogin = () => {
-    Alert.alert('Facebook', 'Coming soon');
+  const handleFacebookLogin = async () => {
+    try {
+      setLoading(true);
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'facebook',
+        options: {
+          redirectTo: 'https://zocalotrade.vercel.app/',
+        },
+      });
+      if (error) throw error;
+    } catch (error: any) {
+      Alert.alert('Error', 'No se pudo iniciar sesión con Facebook: ' + error.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleForgotPassword = async () => {
+    if (!email) {
+      Alert.alert('Error', 'Por favor ingresa tu correo electrónico');
+      return;
+    }
+    
+    try {
+      setLoading(true);
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: 'https://zocalotrade.vercel.app/',
+      });
+      
+      if (error) throw error;
+      
+      Alert.alert('Correo enviado', 'Revisa tu bandeja de entrada para restablecer tu contraseña');
+    } catch (error: any) {
+      Alert.alert('Error', error.message || 'No se pudo enviar el correo');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -166,7 +222,7 @@ export default function LoginScreen() {
           </View>
 
           {isLogin && (
-            <TouchableOpacity style={styles.forgotPassword}>
+            <TouchableOpacity style={styles.forgotPassword} onPress={handleForgotPassword}>
               <Text style={styles.forgotPasswordText}>¿Olvidaste tu contraseña?</Text>
             </TouchableOpacity>
           )}
