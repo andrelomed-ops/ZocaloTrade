@@ -119,45 +119,28 @@ export async function chatAsistenteZocaloTrade(mensaje: string, contexto?: any):
     return respuestaFallback;
   }
 
-  const systemPrompt = `Eres el asistente IA de ZocaloTrade, una app de marketplace para comerciantes del Zócalo de CDMX.
-
-Tu trabajo es ayudar a:
-1. Usuarios a find products
-2. Comerciantes a usar la app
-3. Responder preguntas sobre pedidos, envíos, pagos
-4. Dar soporte básico
-
-Características de ZocaloTrade:
-- Comisión del 10% por venta
-- Entregas coordinación con repartidores
-- Productos locales y artesanías
-- Vendedores locales del centro de CDMX
-
-Sé amable, conciso y útil.`;
-
-  try {
-    const response = await fetch(OPENROUTER_API_URL, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${OPENROUTER_API_KEY}`,
-        'HTTP-Referer': 'https://zocalotrade.app',
-        'X-Title': 'ZocaloTrade',
-      },
-      body: JSON.stringify({
-        model: 'deepseek/deepseek-chat',
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: mensaje }
-        ],
-        max_tokens: 300,
-      })
-    });
-
-    const data = await response.json();
-    return data.choices?.[0]?.message?.content || 'Lo siento, no pude procesar tu mensaje.';
-  } catch (error) {
-    console.error('Error in chat:', error);
-    return 'Lo siento, tuve un problema al procesar tu mensaje. ¿Podrías reformular tu pregunta?';
+  // Mensajes simples en español
+  const msg = mensaje.toLowerCase();
+  
+  if (msg.includes('hola') || msg.includes('buenos') || msg.includes('buenas')) {
+    return '¡Hola! 👋 ¿En qué puedo ayudarte hoy sobre ZocaloTrade?';
   }
+  if (msg.includes('gracias')) {
+    return '¡De nada! 😊 ¿Hay algo más en lo que pueda ayudarte?';
+  }
+  if (msg.includes('adios') || msg.includes('bye') || msg.includes('chau')) {
+    return '¡Hasta luego! 👋 Que tengas un buen día en el Zócalo.';
+  }
+  if (msg.includes('ayuda')) {
+    return 'Estoy aquí para ayudarte. Puedes preguntarme sobre:\n- Cómo comprar o vender\n- Envíos y entregas\n- Pagos y comisiones\n- Estado de pedidos';
+  }
+  if (msg.includes('contacto') || msg.includes('soporte')) {
+    return 'Puedes contactarnos en: soporte@zocalotrade.com';
+  }
+  if (msg.includes('precio') || msg.includes('cuanto cuesta')) {
+    return 'Los precios los establece cada vendedor. El envío varía según la zona: $50-$200.';
+  }
+
+  // Si no hay respuesta predefinida, dar una respuesta genérica
+  return 'Gracias por tu mensaje. Para información específica, contacta a soporte@zocalotrade.com';
 }

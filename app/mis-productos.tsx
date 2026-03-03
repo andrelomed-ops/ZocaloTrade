@@ -62,30 +62,32 @@ export default function MisProductosScreen() {
   return (
     <View style={styles.container}>
       <View style={styles.tiendaHeader}>
-        {editandoNombre ? (
-          <View style={styles.nombreTiendaEdit}>
-            <TextInput
-              style={styles.nombreTiendaInput}
-              value={nombreTienda}
-              onChangeText={setNombreTienda}
-              placeholder="Nombre de tu tienda"
-              autoFocus
-            />
-            <TouchableOpacity onPress={guardarNombreTienda} style={styles.guardarBtn}>
-              <Text style={styles.guardarBtnText}>✓</Text>
-            </TouchableOpacity>
-          </View>
-        ) : (
-          <TouchableOpacity 
-            style={styles.nombreTiendaRow}
-            onPress={() => setEditandoNombre(true)}
-          >
-            <Text style={styles.nombreTienda}>🏪 {nombreTienda}</Text>
-            <Text style={styles.editarIcon}>✏️</Text>
-          </TouchableOpacity>
-        )}
-        <Text style={styles.tiendaSubtext}>Tus productos en ZocaloTrade</Text>
+        <TouchableOpacity 
+          style={styles.nombreTiendaRow}
+          onPress={() => setEditandoNombre(true)}
+        >
+          <Text style={styles.nombreTienda}>🏪 {nombreTienda}</Text>
+          <Text style={styles.editarIcon}>✏️</Text>
+        </TouchableOpacity>
+        <Text style={styles.tiendaSubtext}>Click en el nombre para cambiarlo</Text>
       </View>
+
+      {editandoNombre && (
+        <View style={styles.nombreTiendaEdit}>
+          <TextInput
+            style={styles.nombreTiendaInput}
+            value={nombreTienda}
+            onChangeText={setNombreTienda}
+            placeholder="Nombre de tu tienda"
+          />
+          <TouchableOpacity onPress={guardarNombreTienda} style={styles.guardarBtn}>
+            <Text style={styles.guardarBtnText}>Guardar</Text>
+          </TouchableOpacity>
+          <TouchableOpacity onPress={() => setEditandoNombre(false)} style={styles.cancelarBtn}>
+            <Text style={styles.cancelarBtnText}>X</Text>
+          </TouchableOpacity>
+        </View>
+      )}
 
       <View style={styles.searchContainer}>
         <TextInput
@@ -174,11 +176,13 @@ const styles = StyleSheet.create({
   tiendaHeader: { backgroundColor: '#27ae60', padding: 20, paddingTop: 15 },
   nombreTiendaRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   nombreTienda: { fontSize: 24, fontWeight: 'bold', color: '#fff' },
-  editarIcon: { fontSize: 20 },
-  nombreTiendaEdit: { flexDirection: 'row', alignItems: 'center' },
-  nombreTiendaInput: { flex: 1, backgroundColor: '#fff', borderRadius: 8, padding: 12, fontSize: 18, marginRight: 10 },
-  guardarBtn: { backgroundColor: '#fff', padding: 12, borderRadius: 8 },
-  guardarBtnText: { color: '#27ae60', fontSize: 18, fontWeight: 'bold' },
+  editarIcon: { fontSize: 20, marginLeft: 10 },
+  nombreTiendaEdit: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff', padding: 10, marginTop: 10, borderRadius: 8 },
+  nombreTiendaInput: { flex: 1, borderWidth: 1, borderColor: '#ddd', borderRadius: 8, padding: 10, fontSize: 16, marginRight: 10 },
+  guardarBtn: { backgroundColor: '#27ae60', paddingHorizontal: 15, paddingVertical: 10, borderRadius: 8 },
+  guardarBtnText: { color: '#fff', fontWeight: 'bold' },
+  cancelarBtn: { backgroundColor: '#e74c3c', paddingHorizontal: 12, paddingVertical: 10, borderRadius: 8, marginLeft: 5 },
+  cancelarBtnText: { color: '#fff', fontWeight: 'bold' },
   tiendaSubtext: { color: 'rgba(255,255,255,0.8)', fontSize: 14, marginTop: 5 },
   searchContainer: { padding: 15, backgroundColor: '#fff' },
   searchInput: { backgroundColor: '#f0f0f0', borderRadius: 10, padding: 12, fontSize: 16 },

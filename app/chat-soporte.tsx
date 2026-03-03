@@ -58,13 +58,13 @@ export default function ChatSoporteScreen() {
   };
 
   const preguntasRapidas = [
-    { pregunta: '¿Cómo funciona ZocaloTrade?', respuesta: 'ZocaloTrade es un marketplace donde puedes comprar productos artesanales del Zócalo de CDMX. El proceso es: 1) Explora productos, 2) Agrega al carrito, 3) Paga solo el envío por tarjeta, 4) Paga el producto al repartidor al recibirlo.' },
-    { pregunta: '¿Cómo me registro como vendedor?', respuesta: 'Para vender: 1) Ve a Perfil, 2) Activa "Modo Vendedor", 3) Configura tu tienda, 4) Agrega tus productos. ¡Listo para vender!' },
+    { pregunta: '¿Cómo funciona ZocaloTrade?', respuesta: 'ZocaloTrade es un marketplace donde puedes comprar productos del Zócalo de CDMX. El proceso es: 1) Explora productos, 2) Agrega al carrito, 3) Paga solo el envío por tarjeta, 4) Paga el producto al repartidor al recibirlo.' },
+    { pregunta: '¿Cómo me registro como vendedor?', respuesta: 'Para vender: 1) Ve a Perfil, 2) Activa "Modo Vendedor", 3) Ve a Mi Tienda, 4) Agrega tus productos. ¡Listo para vender!' },
     { pregunta: '¿Cuál es la comisión?', respuesta: 'La comisión de ZocaloTrade es del 10% por cada venta. El vendedor recibe el 90% del precio del producto.' },
     { pregunta: '¿Cómo realizo un pedido?', respuesta: 'Para comprar: 1) Explora los productos, 2) Agrega al carrito, 3) Selecciona tu dirección, 4) Paga el envío, 5) Paga el producto al repartidor al recibir.' },
-    { pregunta: '¿Puedo cancelar un pedido?', respuesta: 'Sí, puedes cancelar mientras el estado sea "Pendiente". Una vez que el vendedor begin a prepararlo, ya no es posible.' },
-    { pregunta: '¿Cómo funciona el pago?', respuesta: 'Pagas el ENVÍO por adelantado con tarjeta. El PRODUCTO se paga al repartidor cuando te entregue (contraentrega).' },
-    { pregunta: '¿Cuánto cuesta el envío?', respuesta: 'El envío varía según la zona: Centro Histórico $50, CDMX $80-150, Estado de México $150-200. ¡Envío gratis en compras acima $500!' },
+    { pregunta: '¿Puedo cancelar un pedido?', respuesta: 'Sí, puedes cancelar mientras el estado sea "Pendiente". Una vez que el vendedor comience a prepararlo, ya no es posible.' },
+    { pregunta: '¿Cómo funciona el pago?', respuesta: 'Pagas el ENVÍO por adelantado con tarjeta. El PRODUCTO se paga al repartidor cuando te lo entregue (contraentrega).' },
+    { pregunta: '¿Cuánto cuesta el envío?', respuesta: 'El envío varía según la zona: Centro Histórico $50, CDMX $80-150, Estado de México $150-200. ¡Envío gratis en compras de más de $500!' },
     { pregunta: '¿Qué es pago contraentrega?', respuesta: 'Es pagar el producto al repartidor cuando te lo entregue. No necesitas tarjeta, pagas en efectivo.' },
   ];
 

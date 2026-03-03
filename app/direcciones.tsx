@@ -84,7 +84,9 @@ export default function DireccionesScreen() {
       [
         { text: 'Cancelar', style: 'cancel' },
         { text: 'Eliminar', style: 'destructive', onPress: () => {
-          setDirecciones(prev => prev.filter(d => d.id !== id));
+          const nuevasDirecciones = direcciones.filter(d => d.id !== id);
+          setDirecciones(nuevasDirecciones);
+          Alert.alert('Dirección eliminada', 'La dirección ha sido eliminada');
         }},
       ]
     );
@@ -122,10 +124,10 @@ export default function DireccionesScreen() {
         </View>
         <View style={styles.direccionActions}>
           <TouchableOpacity onPress={() => editarDireccion(item)} style={styles.actionBtn}>
-            <Text>✏️</Text>
+            <Text style={styles.actionText}>✏️ Editar</Text>
           </TouchableOpacity>
-          <TouchableOpacity onPress={() => eliminarDireccion(item.id)} style={styles.actionBtn}>
-            <Text>🗑️</Text>
+          <TouchableOpacity onPress={() => eliminarDireccion(item.id)} style={[styles.actionBtn, styles.eliminarBtn]}>
+            <Text style={styles.eliminarText}>🗑️ Eliminar</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -283,8 +285,11 @@ const styles = StyleSheet.create({
   direccionNombre: { fontSize: 18, fontWeight: 'bold' },
   principalBadge: { backgroundColor: '#FF6B35', paddingHorizontal: 10, paddingVertical: 3, borderRadius: 10, marginLeft: 10 },
   principalBadgeText: { color: '#fff', fontSize: 10, fontWeight: 'bold' },
-  direccionActions: { flexDirection: 'row' },
-  actionBtn: { padding: 8, marginLeft: 5 },
+  direccionActions: { flexDirection: 'row', marginTop: 10, paddingTop: 10, borderTopWidth: 1, borderTopColor: '#eee' },
+  actionBtn: { flex: 1, padding: 8, borderRadius: 5, backgroundColor: '#f0f0f0', marginHorizontal: 4, alignItems: 'center' },
+  actionText: { fontSize: 12, color: '#333' },
+  eliminarBtn: { backgroundColor: '#ffebee' },
+  eliminarText: { fontSize: 12, color: '#c62828' },
   direccionTexto: { color: '#333', fontSize: 14, marginTop: 3 },
   direccionReferencias: { color: '#666', fontSize: 13, marginTop: 8, fontStyle: 'italic' },
   principalBtn: { marginTop: 12, paddingVertical: 8 },

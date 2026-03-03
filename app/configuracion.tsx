@@ -36,6 +36,34 @@ export default function ConfiguracionScreen() {
     );
   };
 
+  const toggleNotificaciones = () => {
+    setNotificaciones(!notificaciones);
+    Alert.alert(
+      notificaciones ? 'Notificaciones desactivadas' : 'Notificaciones activadas',
+      notificaciones 
+        ? 'Ya no recibirás notificaciones push' 
+        : 'Recibirás notificaciones sobre tus pedidos'
+    );
+  };
+
+  const toggleSonido = () => {
+    setSonido(!sonido);
+  };
+
+  const toggleVibracion = () => {
+    setVibracion(!vibracion);
+  };
+
+  const toggleUbicacion = () => {
+    setUbicacion(!ubicacion);
+    Alert.alert(
+      ubicacion ? 'Ubicación activada' : 'Ubicación desactivada',
+      ubicacion
+        ? 'Puedes encontrar vendedores cercanos'
+        : 'No verás vendedores cercanos'
+    );
+  };
+
   return (
     <ScrollView style={styles.container}>
       <View style={styles.section}>
@@ -48,7 +76,7 @@ export default function ConfiguracionScreen() {
           </View>
           <Switch
             value={notificaciones}
-            onValueChange={setNotificaciones}
+            onValueChange={toggleNotificaciones}
             trackColor={{ false: '#ddd', true: '#FF6B35' }}
             thumbColor="#fff"
           />
@@ -61,7 +89,7 @@ export default function ConfiguracionScreen() {
           </View>
           <Switch
             value={sonido}
-            onValueChange={setSonido}
+            onValueChange={toggleSonido}
             trackColor={{ false: '#ddd', true: '#FF6B35' }}
             thumbColor="#fff"
           />
@@ -74,7 +102,7 @@ export default function ConfiguracionScreen() {
           </View>
           <Switch
             value={vibracion}
-            onValueChange={setVibracion}
+            onValueChange={toggleVibracion}
             trackColor={{ false: '#ddd', true: '#FF6B35' }}
             thumbColor="#fff"
           />
@@ -91,7 +119,7 @@ export default function ConfiguracionScreen() {
           </View>
           <Switch
             value={ubicacion}
-            onValueChange={setUbicacion}
+            onValueChange={toggleUbicacion}
             trackColor={{ false: '#ddd', true: '#FF6B35' }}
             thumbColor="#fff"
           />
