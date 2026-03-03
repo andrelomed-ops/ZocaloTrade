@@ -1,8 +1,9 @@
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, KeyboardAvoidingView, Platform, Alert } from 'react-native';
-import { router } from 'expo-router';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, KeyboardAvoidingView, Platform, Alert, ActivityIndicator } from 'react-native';
+import { router, useLocalSearchParams } from 'expo-router';
 import { useState, useEffect } from 'react';
 import { supabase } from '../src/services/supabase';
 import { useStore } from '../src/store/useStore';
+import * as WebBrowser from 'expo-web-browser';
 
 export default function LoginScreen() {
   const { setUser, user } = useStore();
@@ -11,13 +12,58 @@ export default function LoginScreen() {
   const [password, setPassword] = useState('');
   const [nombre, setNombre] = useState('');
   const [loading, setLoading] = useState(false);
+  const params = useLocalSearchParams();
 
-  // Si ya hay usuario logueado, redirigir
   useEffect(() => {
     if (user) {
       router.replace('/(tabs)');
     }
   }, [user]);
+
+  useEffect(() => {
+    if (params.access_token) {
+      handleOAuthCallback();
+    }
+  }, [params]);
+
+  async function handleOAuthCallback() {
+    setLoading(true);
+    try {
+      const accessToken = params.access_token as string;
+      const refreshToken = params.refresh_token as string;
+      
+      if (accessToken && refreshToken) {
+        const { data, error } = await supabase.auth.setSession({
+          access_token: accessToken,
+          refresh_token: refreshToken,
+        });
+
+        if (error) {
+          Alert.alert('Error', error.message);
+          return;
+        }
+
+        if (data.session) {
+          const { data: perfil } = await supabase
+            .from('perfiles')
+            .select('*')
+            .eq('id', data.user.id)
+            .single();
+
+          setUser({
+            id: data.user.id,
+            nombre: perfil?.nombre || data.user.email?.split('@')[0] || 'Usuario',
+            email: data.user.email,
+          });
+          
+          router.replace('/(tabs)');
+        }
+      }
+    } catch (error: any) {
+      Alert.alert('Error', error.message || 'Error al iniciar sesión');
+    }
+    setLoading(false);
+  }
 
   const handleSubmit = async () => {
     if (!email || !password) {
@@ -34,7 +80,6 @@ export default function LoginScreen() {
 
     try {
       if (isLogin) {
-        // Iniciar sesión
         const { data, error } = await supabase.auth.signInWithPassword({
           email,
           password,
@@ -50,7 +95,6 @@ export default function LoginScreen() {
           throw error;
         }
 
-        // Obtener perfil
         const { data: perfil } = await supabase
           .from('perfiles')
           .select('*')
@@ -64,10 +108,8 @@ export default function LoginScreen() {
         };
         
         setUser(userData);
-
         Alert.alert('¡Bienvenido!', 'Has iniciado sesión correctamente');
       } else {
-        // Registrarse
         const { data, error } = await supabase.auth.signUp({
           email,
           password,
@@ -83,7 +125,6 @@ export default function LoginScreen() {
           throw error;
         }
 
-        // Crear perfil
         if (data.user) {
           await supabase.from('perfiles').insert({
             id: data.user.id,
@@ -116,15 +157,52 @@ export default function LoginScreen() {
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: 'https://zocalotrade.vercel.app/',
+          redirectTo: 'https://zocalotrade.vercel.app/api/auth/callback/google',
+          skipBrowserRedirect: true,
         },
       });
       
       if (error) throw error;
       
-      // El redirect ocurre automáticamente
+      if (data?.url) {
+        const result = await WebBrowser.openAuthSessionAsync(
+          data.url,
+          'https://zocalotrade.vercel.app/api/auth/callback/google'
+        );
+        
+        if (result.type === 'success') {
+          const url = result.url;
+          const params = new URL(url).searchParams;
+          const accessToken = params.get('access_token');
+          const refreshToken = params.get('refresh_token');
+          
+          if (accessToken && refreshToken) {
+            const { data: sessionData, error: sessionError } = await supabase.auth.setSession({
+              access_token: accessToken,
+              refresh_token: refreshToken,
+            });
+            
+            if (!sessionError && sessionData.session) {
+              const { data: perfil } = await supabase
+                .from('perfiles')
+                .select('*')
+                .eq('id', sessionData.user.id)
+                .single();
+
+              setUser({
+                id: sessionData.user.id,
+                nombre: perfil?.nombre || sessionData.user.email?.split('@')[0] || 'Usuario',
+                email: sessionData.user.email,
+              });
+              
+              router.replace('/(tabs)');
+            }
+          }
+        }
+      }
     } catch (error: any) {
       Alert.alert('Error', 'No se pudo iniciar sesión con Google: ' + error.message);
+    } finally {
       setLoading(false);
     }
   };
@@ -136,14 +214,26 @@ export default function LoginScreen() {
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'facebook',
         options: {
-          redirectTo: 'https://zocalotrade.vercel.app/',
+          redirectTo: 'https://zocalotrade.vercel.app/api/auth/callback/google',
+          skipBrowserRedirect: true,
         },
       });
       
       if (error) throw error;
-      
+
+      if (data?.url) {
+        const result = await WebBrowser.openAuthSessionAsync(
+          data.url,
+          'https://zocalotrade.vercel.app/api/auth/callback/google'
+        );
+        
+        if (result.type === 'success') {
+          router.replace('/(tabs)');
+        }
+      }
     } catch (error: any) {
       Alert.alert('Error', 'No se pudo iniciar sesión con Facebook: ' + error.message);
+    } finally {
       setLoading(false);
     }
   };
@@ -169,6 +259,15 @@ export default function LoginScreen() {
       setLoading(false);
     }
   };
+
+  if (loading && !params.access_token) {
+    return (
+      <View style={[styles.container, styles.loadingContainer]}>
+        <ActivityIndicator size="large" color="#FF6B35" />
+        <Text style={styles.loadingText}>Cargando...</Text>
+      </View>
+    );
+  }
 
   return (
     <KeyboardAvoidingView 
@@ -242,6 +341,7 @@ export default function LoginScreen() {
           <TouchableOpacity 
             style={styles.submitBtn}
             onPress={handleSubmit}
+            disabled={loading}
           >
             <Text style={styles.submitBtnText}>
               {isLogin ? 'Iniciar Sesión' : 'Crear Cuenta'}
@@ -279,6 +379,8 @@ export default function LoginScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#FF6B35' },
+  loadingContainer: { justifyContent: 'center', alignItems: 'center' },
+  loadingText: { color: '#fff', marginTop: 10, fontSize: 16 },
   scrollContent: { flexGrow: 1, justifyContent: 'center', padding: 20 },
   logoContainer: { alignItems: 'center', marginBottom: 30 },
   logo: { fontSize: 80 },
