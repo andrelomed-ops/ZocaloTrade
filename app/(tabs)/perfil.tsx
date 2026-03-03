@@ -190,16 +190,16 @@ export default function PerfilScreen() {
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Cuenta</Text>
         
-        <TouchableOpacity style={styles.menuItem}>
+        <TouchableOpacity style={styles.menuItem} onPress={() => router.push('/notificaciones')}>
           <Text style={styles.menuIcon}>🔔</Text>
           <Text style={styles.menuText}>Notificaciones</Text>
-          <Text style={styles.menuArrow} onPress={() => router.push('/notificaciones')}>→</Text>
+          <Text style={styles.menuArrow}>→</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.menuItem}>
+        <TouchableOpacity style={styles.menuItem} onPress={() => router.push('/configuracion')}>
           <Text style={styles.menuIcon}>⚙️</Text>
           <Text style={styles.menuText}>Configuración</Text>
-          <Text style={styles.menuArrow} onPress={() => router.push('/configuracion')}>→</Text>
+          <Text style={styles.menuArrow}>→</Text>
         </TouchableOpacity>
 
         <TouchableOpacity style={styles.menuItem} onPress={() => router.push('/chat-soporte')}>
@@ -212,13 +212,13 @@ export default function PerfilScreen() {
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Acerca de</Text>
         
-        <TouchableOpacity style={styles.menuItem}>
+        <TouchableOpacity style={styles.menuItem} onPress={() => Alert.alert('Términos y Condiciones', 'Términos y Condiciones de ZocaloTrade:\n\n1. Uso de la app\n2. Compras y pagos\n3. Envíos\n4. Devoluciones\n5. Privacidad')}>
           <Text style={styles.menuIcon}>📖</Text>
           <Text style={styles.menuText}>Términos y Condiciones</Text>
           <Text style={styles.menuArrow}>→</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.menuItem}>
+        <TouchableOpacity style={styles.menuItem} onPress={() => Alert.alert('Política de Privacidad', 'Política de Privacidad de ZocaloTrade:\n\nTus datos están seguros. No compartimos información con terceros.')}>
           <Text style={styles.menuIcon}>🔒</Text>
           <Text style={styles.menuText}>Política de Privacidad</Text>
           <Text style={styles.menuArrow}>→</Text>

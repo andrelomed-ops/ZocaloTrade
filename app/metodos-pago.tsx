@@ -14,12 +14,12 @@ interface MetodoPago {
 const MOCK_METODOS: MetodoPago[] = [
   { id: '1', tipo: 'tarjeta', nombre: 'Visa', numero: '**** **** **** 4242', expira: '12/26', esPrincipal: true },
   { id: '2', tipo: 'efectivo', nombre: 'Efectivo', esPrincipal: false },
-  { id: '3', tipo: 'contraentrega', nombre: 'Pago contraentrega', esPrincipal: false },
 ];
 
 export default function MetodosPagoScreen() {
   const insets = useSafeAreaInsets();
   const [metodos, setMetodos] = useState<MetodoPago[]>(MOCK_METODOS);
+  const [mostrarAgregar, setMostrarAgregar] = useState(false);
 
   const eliminarMetodo = (id: string) => {
     Alert.alert(
@@ -152,43 +152,42 @@ export default function MetodosPagoScreen() {
       />
 
       <View style={styles.metodosPopulares}>
-        <Text style={styles.sectionTitle}>Agregar nuevo</Text>
-        
-        <TouchableOpacity style={styles.agregarOpcion}>
-          <Text style={styles.agregarIcon}>💳</Text>
-          <Text style={styles.agregarText}>Agregar tarjeta de débito/crédito</Text>
-          <Text style={styles.agregarArrow}>→</Text>
-        </TouchableOpacity>
+        {!mostrarAgregar ? (
+          <TouchableOpacity 
+            style={styles.agregarBtn}
+            onPress={() => setMostrarAgregar(true)}
+          >
+            <Text style={styles.agregarBtnIcon}>+</Text>
+            <Text style={styles.agregarBtnText}>Agregar nuevo método de pago</Text>
+          </TouchableOpacity>
+        ) : (
+          <>
+            <TouchableOpacity 
+              style={styles.agregarOpcion}
+              onPress={() => Alert.alert('Próximamente', 'Esta función estará disponible pronto')}
+            >
+              <Text style={styles.agregarIcon}>💳</Text>
+              <Text style={styles.agregarText}>Agregar tarjeta de débito/crédito</Text>
+              <Text style={styles.agregarArrow}>→</Text>
+            </TouchableOpacity>
 
-        <TouchableOpacity style={styles.agregarOpcion}>
-          <Text style={styles.agregarIcon}>💵</Text>
-          <Text style={styles.agregarText}>Pagar en efectivo</Text>
-          <Text style={styles.agregarArrow}>→</Text>
-        </TouchableOpacity>
+            <TouchableOpacity 
+              style={styles.agregarOpcion}
+              onPress={() => Alert.alert('Próximamente', 'Esta función estará disponible pronto')}
+            >
+              <Text style={styles.agregarIcon}>🏦</Text>
+              <Text style={styles.agregarText}>Transferencia bancaria</Text>
+              <Text style={styles.agregarArrow}>→</Text>
+            </TouchableOpacity>
 
-        <TouchableOpacity style={styles.agregarOpcion}>
-          <Text style={styles.agregarIcon}>🏦</Text>
-          <Text style={styles.agregarText}>Transferencia bancaria</Text>
-          <Text style={styles.agregarArrow}>→</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity 
-          style={styles.agregarOpcion}
-          onPress={() => {
-            const nuevoMetodo: MetodoPago = {
-              id: Date.now().toString(),
-              tipo: 'contraentrega',
-              nombre: 'Pago contraentrega',
-              esPrincipal: false,
-            };
-            setMetodos([...metodos, nuevoMetodo]);
-            Alert.alert('Éxito', 'Pago contraentrega agregado');
-          }}
-        >
-          <Text style={styles.agregarIcon}>📦</Text>
-          <Text style={styles.agregarText}>Pago contraentrega</Text>
-          <Text style={styles.agregarArrow}>→</Text>
-        </TouchableOpacity>
+            <TouchableOpacity 
+              style={styles.cancelarBtn}
+              onPress={() => setMostrarAgregar(false)}
+            >
+              <Text style={styles.cancelarBtnText}>Cancelar</Text>
+            </TouchableOpacity>
+          </>
+        )}
       </View>
     </View>
   );
@@ -233,4 +232,9 @@ const styles = StyleSheet.create({
   agregarIcon: { fontSize: 24, marginRight: 15 },
   agregarText: { flex: 1, fontSize: 16 },
   agregarArrow: { color: '#999', fontSize: 18 },
+  agregarBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: '#FF6B35', padding: 15, borderRadius: 10 },
+  agregarBtnIcon: { fontSize: 20, color: '#fff', marginRight: 10, fontWeight: 'bold' },
+  agregarBtnText: { color: '#fff', fontSize: 16, fontWeight: 'bold' },
+  cancelarBtn: { marginTop: 10, padding: 15, alignItems: 'center' },
+  cancelarBtnText: { color: '#FF6B35', fontSize: 16 },
 });
