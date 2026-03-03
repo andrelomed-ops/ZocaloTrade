@@ -1,5 +1,6 @@
 import { View, Text, TouchableOpacity, StyleSheet, Switch, ScrollView, Alert, Linking } from 'react-native';
 import { useState } from 'react';
+import { router } from 'expo-router';
 
 export default function ConfiguracionScreen() {
   const [notificaciones, setNotificaciones] = useState(true);
@@ -96,12 +97,12 @@ export default function ConfiguracionScreen() {
           />
         </View>
 
-        <TouchableOpacity style={styles.menuItem}>
+        <TouchableOpacity style={styles.menuItem} onPress={() => Alert.alert('Datos y Privacidad', 'ZocaloTrade protege tus datos personales. No vendemos ni compartimos tu información con terceros.')}>
           <Text style={styles.menuText}>Datos y Privacidad</Text>
           <Text style={styles.menuArrow}>→</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.menuItem}>
+        <TouchableOpacity style={styles.menuItem} onPress={() => Alert.alert('Cookies', 'Utilizamos cookies para mejorar tu experiencia. Puedes gestionar tus preferencias en cualquier momento.')}>
           <Text style={styles.menuText}>Cookies</Text>
           <Text style={styles.menuArrow}>→</Text>
         </TouchableOpacity>
@@ -160,17 +161,17 @@ export default function ConfiguracionScreen() {
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Acerca de</Text>
         
-        <TouchableOpacity style={styles.menuItem}>
+        <TouchableOpacity style={styles.menuItem} onPress={() => Alert.alert('Términos de Servicio', 'Términos y Condiciones de ZocaloTrade:\n\n1. Uso de la App\n2. Compras y Pagos\n3. Envíos y Entregas\n4. Comisiones\n5. Privacidad\n6. Contacto: soporte@zocalotrade.com')}>
           <Text style={styles.menuText}>Términos de Servicio</Text>
           <Text style={styles.menuArrow}>→</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.menuItem}>
+        <TouchableOpacity style={styles.menuItem} onPress={() => Alert.alert('Política de Privacidad', 'En Zocalotrade respetamos tu privacidad. \n\n- Tus datos están encriptados\n- No compartimos información con terceros\n- Puedes solicitar eliminación de datos\n- Contacto: privacidad@zocalotrade.com')}>
           <Text style={styles.menuText}>Política de Privacidad</Text>
           <Text style={styles.menuArrow}>→</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.menuItem}>
+        <TouchableOpacity style={styles.menuItem} onPress={() => Alert.alert('Licencias', 'ZocaloTrade usa las siguientes tecnologías de código abierto:\n\n- React Native\n- Expo\n- Supabase\n- OpenRouter AI')}>
           <Text style={styles.menuText}>Licencias</Text>
           <Text style={styles.menuArrow}>→</Text>
         </TouchableOpacity>

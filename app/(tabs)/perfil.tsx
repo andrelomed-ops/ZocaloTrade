@@ -4,6 +4,72 @@ import { router } from 'expo-router';
 import { useState } from 'react';
 import { supabase } from '../../src/services/supabase';
 
+const TERMINOS = `
+TÉRMINOS Y CONDICIONES DE ZOCALOTRADE
+
+Última actualización: Marzo 2026
+
+1. ACEPTACIÓN DE TÉRMINOS
+Al usar ZocaloTrade, aceptas estos términos.
+
+2. DESCRIPCIÓN DEL SERVICIO
+ZocaloTrade es un marketplace que conecta compradores con vendedores del Zócalo de Ciudad de México.
+
+3. COMISIONES
+- Comisión del 10% por cada venta exitosa
+- El vendedor recibe el 90% del precio del producto
+
+4. PAGOS
+- El cliente paga el envío por adelantado
+- El producto se paga al repartidor (contraentrega)
+- Aceptamos tarjetas de débito/crédito y efectivo
+
+5. ENVÍOS
+- Entregamos en toda la CDMX y área metropolitana
+- El repartidor contactará al cliente antes de entregar
+
+6. POLÍTICA DE DEVOLUCIONES
+- Solo se aceptan devoluciones si el producto arrive dañado o no arrive
+- Contacta soporte dentro de 24 horas
+
+7. CUENTA DE USUARIO
+- Debes proporcionar información真实的
+- Eres responsable de tu cuenta y contraseña
+
+8. CONTACTO
+soporte@zocalotrade.com
+`;
+
+const PRIVACIDAD = `
+POLÍTICA DE PRIVACIDAD DE ZOCALOTRADE
+
+Última actualización: Marzo 2026
+
+1. INFORMACIÓN QUE RECOLECTAMOS
+- Nombre y correo electrónico
+- Dirección de entrega
+- Historial de pedidos
+- Información de pago (de forma segura)
+
+2. CÓMO USAMOS TU INFORMACIÓN
+- Procesar tus pedidos
+- Enviar notificaciones sobre pedidos
+- Mejorar nuestros servicios
+
+3. PROTECCIÓN DE DATOS
+- Tus datos están encriptados
+- No vendemos tu información a terceros
+- Almacenamiento seguro en Supabase
+
+4. TUS DERECHOS
+- Acceder a tus datos
+- Corregir información incorrecta
+- Solicitar eliminación de datos
+
+5. CONTACTO
+privacidad@zocalotrade.com
+`;
+
 export default function PerfilScreen() {
   const { user, rol, setRol, pedidos, initialized, initialize, setUser } = useStore();
   const [isVendedor, setIsVendedor] = useState(rol === 'vendedor');
@@ -212,10 +278,16 @@ export default function PerfilScreen() {
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Acerca de</Text>
         
-        <TouchableOpacity style={styles.menuItem} onPress={() => Alert.alert('Términos y Condiciones', 'Términos y Condiciones de ZocaloTrade:\n\n1. Uso de la app\n2. Compras y pagos\n3. Envíos\n4. Devoluciones\n5. Privacidad')}>
+        <TouchableOpacity style={styles.menuItem} onPress={() => Alert.alert('Términos y Condiciones', TERMINOS)}>
           <Text style={styles.menuIcon}>📖</Text>
           <Text style={styles.menuText}>Términos y Condiciones</Text>
           <Text style={styles.menuArrow}>→</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity style={styles.menuItem} onPress={() => Alert.alert('Política de Privacidad', PRIVACIDAD)}>
+          <Text style={styles.menuIcon}>🔒</Text>
+          <Text style={styles.menuText}>Política de Privacidad</Text>
+          <Text style={styles.menuArrow}>→→</Text>
         </TouchableOpacity>
 
         <TouchableOpacity style={styles.menuItem} onPress={() => Alert.alert('Política de Privacidad', 'Política de Privacidad de ZocaloTrade:\n\nTus datos están seguros. No compartimos información con terceros.')}>

@@ -12,7 +12,8 @@ interface MetodoPago {
 }
 
 const MOCK_METODOS: MetodoPago[] = [
-  { id: '1', tipo: 'tarjeta', nombre: 'Visa', numero: '**** **** **** 4242', expira: '12/26', esPrincipal: true },
+  { id: 'contraentrega', tipo: 'contraentrega', nombre: 'Pago contraentrega', esPrincipal: true },
+  { id: '1', tipo: 'tarjeta', nombre: 'Visa', numero: '**** **** **** 4242', expira: '12/26', esPrincipal: false },
   { id: '2', tipo: 'efectivo', nombre: 'Efectivo', esPrincipal: false },
 ];
 
@@ -164,10 +165,31 @@ export default function MetodosPagoScreen() {
           <>
             <TouchableOpacity 
               style={styles.agregarOpcion}
-              onPress={() => Alert.alert('Próximamente', 'Esta función estará disponible pronto')}
+              onPress={() => {
+                const nuevoMetodo: MetodoPago = {
+                  id: Date.now().toString(),
+                  tipo: 'tarjeta',
+                  nombre: 'Nueva Tarjeta',
+                  numero: '**** **** **** ' + Math.floor(1000 + Math.random() * 9000),
+                  expira: '12/27',
+                  esPrincipal: false,
+                };
+                setMetodos([...metodos, nuevoMetodo]);
+                setMostrarAgregar(false);
+                Alert.alert('Éxito', 'Tarjeta agregada correctamente');
+              }}
             >
               <Text style={styles.agregarIcon}>💳</Text>
               <Text style={styles.agregarText}>Agregar tarjeta de débito/crédito</Text>
+              <Text style={styles.agregarArrow}>→</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity 
+              style={styles.agregarOpcion}
+              onPress={() => Alert.alert('Próximamente', 'Esta función estará disponible pronto')}
+            >
+              <Text style={styles.agregarIcon}>🏦</Text>
+              <Text style={styles.agregarText}>Transferencia bancaria</Text>
               <Text style={styles.agregarArrow}>→</Text>
             </TouchableOpacity>
 
