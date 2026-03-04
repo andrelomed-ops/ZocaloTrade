@@ -47,16 +47,8 @@ export default function LoginScreen() {
   }
 
   async function upsertProfile(userId: string, userEmail: string, userNombre: string, avatarUrl?: string) {
-    try {
-      await supabase.from('perfiles').upsert({
-        id: userId,
-        nombre: userNombre,
-        email: userEmail,
-        avatar_url: avatarUrl,
-      }, { onConflict: 'id' });
-    } catch (e) {
-      console.log('Profile upsert error (ignoring):', e);
-    }
+    // Skip profile upsert for now - can be added later
+    console.log('Would create profile:', userId, userEmail, userNombre);
   }
 
   const handleSubmit = async () => {
