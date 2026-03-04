@@ -131,8 +131,8 @@ export default function LoginScreen() {
       setLoading(true);
       
       const redirectUrl = Platform.OS === 'web' 
-        ? window.location.origin 
-        : Linking.createURL('auth/callback');
+        ? `${window.location.origin}/auth-callback` 
+        : Linking.createURL('auth-callback');
       
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
