@@ -5,7 +5,12 @@ import { useStore } from '../../src/store/useStore';
 import { useState } from 'react';
 
 export default function HomeScreen() {
-  const { addToCarrito, favoritos, toggleFavorito, productos } = useStore();
+  const state = useStore();
+  const addToCarrito = state.addToCarrito || (() => {});
+  const favoritos = state.favoritos || [];
+  const toggleFavorito = state.toggleFavorito || (() => {});
+  const productos = state.productos || [];
+  
   const [categoriaSeleccionada, setCategoriaSeleccionada] = useState('Todos');
 
   const allProducts = productos.length > 0 ? productos : MOCK_PRODUCTOS;

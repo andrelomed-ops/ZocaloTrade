@@ -47,8 +47,11 @@ export const MOCK_TIENDAS: Tienda[] = [
   { id: 't1', nombre: 'Don Juan Tamales', descripcion: 'Calidad', direccion: 'Centro', latitud: 0, longitud: 0, fotoPerfil: 'https://picsum.photos/100/100', rating: 4.8, categoria: 'Comida' },
 ];
 
+export const CATEGORIAS = ['Todos', 'Comida', 'Bebidas', 'Artesanía', 'Ropa', 'Accesorios'];
+
 interface AppState {
   user: User | null;
+  rol: 'cliente' | 'vendedor' | 'repartidor' | null;
   productos: Producto[];
   tiendas: Tienda[];
   carrito: any[];
@@ -59,6 +62,7 @@ interface AppState {
   
   initialize: () => Promise<void>;
   setUser: (user: User | null) => void;
+  setRol: (rol: 'cliente' | 'vendedor' | 'repartidor' | null) => void;
   setDarkMode: (darkMode: boolean) => void;
   toggleFavorito: (id: string) => void;
   addToCarrito: (p: any) => void;
@@ -67,6 +71,7 @@ interface AppState {
 
 export const useStore = create<AppState>((set) => ({
   user: null,
+  rol: 'cliente',
   productos: [],
   tiendas: [],
   carrito: [],
@@ -76,6 +81,7 @@ export const useStore = create<AppState>((set) => ({
   darkMode: false,
   
   setUser: (user) => set({ user }),
+  setRol: (rol) => set({ rol }),
   setDarkMode: (darkMode) => set({ darkMode }),
   
   initialize: async () => {

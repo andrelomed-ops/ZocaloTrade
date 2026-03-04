@@ -71,7 +71,13 @@ privacidad@zocalotrade.com
 `;
 
 export default function PerfilScreen() {
-  const { user, rol, setRol, pedidos, initialized, initialize, setUser } = useStore();
+  const state = useStore();
+  const user = state.user;
+  const rol = state.rol || 'cliente';
+  const setRol = state.setRol || (() => {});
+  const pedidos = state.pedidos || [];
+  const setUser = state.setUser || (() => {});
+  
   const [isVendedor, setIsVendedor] = useState(rol === 'vendedor');
 
   const toggleRol = (value: boolean) => {
@@ -86,7 +92,7 @@ export default function PerfilScreen() {
   };
 
   const pedidosCount = pedidos.length;
-  const totalGastado = pedidos.reduce((sum, p) => sum + p.total, 0);
+  const totalGastado = pedidos.reduce((sum, p) => sum + (p.total || 0), 0);
 
   const handleLogout = async () => {
     if (Platform.OS === 'web') {

@@ -4,7 +4,14 @@ import { router } from 'expo-router';
 import { useState, useEffect } from 'react';
 
 export default function ExplorarScreen() {
-  const { addToCarrito, productos, initialized, initialize, favoritos, toggleFavorito } = useStore();
+  const state = useStore();
+  const addToCarrito = state.addToCarrito || (() => {});
+  const productos = state.productos || [];
+  const initialized = state.initialized;
+  const initialize = state.initialize || (async () => {});
+  const favoritos = state.favoritos || [];
+  const toggleFavorito = state.toggleFavorito || (() => {});
+  
   const [search, setSearch] = useState('');
   const [categoria, setCategoria] = useState('Todos');
 
@@ -14,9 +21,9 @@ export default function ExplorarScreen() {
     }
   }, []);
 
-  const productosMostrar = productos.length > 0 ? productos : MOCK_PRODUCTOS;
+  const productosMostrar = (productos || []).length > 0 ? productos : MOCK_PRODUCTOS;
 
-  const filtered = productosMostrar.filter((p) => {
+  const filtered = (productosMostrar || []).filter((p) => {
     const matchSearch = p.nombre.toLowerCase().includes(search.toLowerCase());
     const matchCat = categoria === 'Todos' || p.categoria === categoria;
     return matchSearch && matchCat;
