@@ -1,4 +1,4 @@
-import { View, Text, StyleSheet, ActivityIndicator, Platform } from 'react-native';
+import { View, Text, StyleSheet, ActivityIndicator } from 'react-native';
 import { router } from 'expo-router';
 import { useEffect } from 'react';
 import { supabase } from '../src/services/supabase';
@@ -10,21 +10,10 @@ export default function SplashScreen() {
   useEffect(() => {
     const initApp = async () => {
       try {
-        // 1. Inicializar datos básicos
+        // 1. Inicializar datos básicos (productos/tiendas)
         await initialize();
 
-        // 2. DETECCIÓN DE GOOGLE REDIRECT (CRÍTICO PARA WEB)
-        if (Platform.OS === 'web' && window.location.hash.includes('access_token')) {
-          // Si hay un token en la URL, nos quedamos en el Splash hasta que Supabase lo procese
-          let attempts = 0;
-          while (attempts < 10) {
-            const { data: { session } } = await supabase.auth.getSession();
-            if (session) break;
-            await new Promise(resolve => setTimeout(resolve, 300));
-            attempts++;
-          }
-        }
-
+        // 2. Verificar sesión de Supabase
         const { data: { session } } = await supabase.auth.getSession();
         
         if (session?.user) {
@@ -39,7 +28,7 @@ export default function SplashScreen() {
           });
         }
 
-        // 3. Solo navegamos cuando estemos seguros de tener (o no) la sesión
+        // 3. Navegar al Home
         router.replace('/(tabs)');
         
       } catch (error) {
@@ -55,7 +44,7 @@ export default function SplashScreen() {
     <View style={styles.splash}>
       <Text style={styles.logo}>🏪</Text>
       <Text style={styles.appName}>ZocaloTrade</Text>
-      <Text style={styles.tagline}>Verificando seguridad...</Text>
+      <Text style={styles.tagline}>Cargando marketplace...</Text>
       <View style={styles.loading}>
         <ActivityIndicator color="#fff" size="large" />
       </View>

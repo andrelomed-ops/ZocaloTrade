@@ -1,12 +1,8 @@
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, KeyboardAvoidingView, Platform, Alert, ActivityIndicator } from 'react-native';
-import { router, useLocalSearchParams } from 'expo-router';
+import { router } from 'expo-router';
 import { useState, useEffect } from 'react';
 import { supabase } from '../src/services/supabase';
 import { useStore } from '../src/store/useStore';
-import * as WebBrowser from 'expo-web-browser';
-import * as Linking from 'expo-linking';
-
-WebBrowser.maybeCompleteAuthSession();
 
 export default function LoginScreen() {
   const { setUser, user } = useStore();
@@ -15,7 +11,6 @@ export default function LoginScreen() {
   const [password, setPassword] = useState('');
   const [nombre, setNombre] = useState('');
   const [loading, setLoading] = useState(false);
-  const params = useLocalSearchParams();
 
   useEffect(() => {
     if (user) {
@@ -23,28 +18,16 @@ export default function LoginScreen() {
     }
   }, [user]);
 
-  useEffect(() => {
-    checkSession();
-  }, []);
-
-  async function checkSession() {
-    // Skip session check for now - will be handled after OAuth
-    console.log('checkSession called');
-  }
-
-  async function upsertProfile(userId: string, userEmail: string, userNombre: string, avatarUrl?: string) {
-    // Skip profile upsert for now - can be added later
-    console.log('Would create profile:', userId, userEmail, userNombre);
-  }
-
   const handleSubmit = async () => {
     if (!email || !password) {
-      Alert.alert('Error', 'Por favor completa todos los campos');
+      const msg = 'Por favor completa todos los campos';
+      if (Platform.OS === 'web') alert(msg); else Alert.alert('Error', msg);
       return;
     }
 
     if (!isLogin && !nombre) {
-      Alert.alert('Error', 'Por favor ingresa tu nombre');
+      const msg = 'Por favor ingresa tu nombre';
+      if (Platform.OS === 'web') alert(msg); else Alert.alert('Error', msg);
       return;
     }
 
@@ -52,44 +35,33 @@ export default function LoginScreen() {
 
     try {
       if (isLogin) {
-        // Soporte para login con email
         const { data, error } = await supabase.auth.signInWithPassword({
           email: email.trim(),
           password: password,
         });
 
         if (error) {
-          console.error('Login error:', error);
           if (error.message.includes('Invalid login credentials')) {
-            throw new Error('Correo o contraseña incorrectos. Asegúrate de usar el correo con el que te registraste.');
+            throw new Error('Correo o contraseña incorrectos');
           }
           throw error;
         }
 
         if (data?.session?.user) {
           const user = data.session.user;
-          const userEmail = user.email || email;
-          const userNombre = user.user_metadata?.full_name || user.user_metadata?.name || userEmail.split('@')[0];
-          
           setUser({
             id: user.id,
-            nombre: userNombre,
-            email: userEmail,
+            nombre: user.user_metadata?.full_name || email.split('@')[0],
+            email: user.email || email,
           });
-          
-          if (Platform.OS !== 'web') {
-            Alert.alert('¡Bienvenido!', 'Has iniciado sesión correctamente');
-          }
           router.replace('/(tabs)');
         }
       } else {
-        // Registro
         const { data, error } = await supabase.auth.signUp({
           email: email.trim(),
           password: password,
           options: {
             data: {
-              name: nombre,
               full_name: nombre,
             }
           }
@@ -109,125 +81,15 @@ export default function LoginScreen() {
             email: data.user.email || email,
           });
           
-          if (Platform.OS !== 'web') {
-            Alert.alert('¡Cuenta creada!', 'Te hemos enviado un correo de confirmación (revisa SPAM).');
+          if (Platform.OS === 'web') {
+            alert('¡Cuenta creada con éxito!');
           }
           router.replace('/(tabs)');
         }
       }
     } catch (error: any) {
-      if (Platform.OS === 'web') {
-        alert(error.message || 'Ocurrió un error');
-      } else {
-        Alert.alert('Error', error.message || 'Ocurrió un error');
-      }
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleGoogleLogin = async () => {
-    try {
-      setLoading(true);
-      
-      const redirectUrl = Platform.OS === 'web' 
-        ? window.location.origin 
-        : Linking.createURL('auth/callback');
-      
-      const { data, error } = await supabase.auth.signInWithOAuth({
-        provider: 'google',
-        options: {
-          redirectTo: redirectUrl,
-          skipBrowserRedirect: Platform.OS !== 'web',
-        },
-      });
-      
-      if (error) throw error;
-      
-      // En Web, la página se redirigirá automáticamente.
-      // En Móvil, manejamos la sesión de retorno.
-      if (Platform.OS !== 'web' && data?.url) {
-        const result = await WebBrowser.openAuthSessionAsync(data.url, redirectUrl);
-        
-        if (result.type === 'success' && result.url) {
-          const urlObj = new URL(result.url);
-          const hash = urlObj.hash.substring(1);
-          const params = new URLSearchParams(hash);
-          
-          const accessToken = params.get('access_token');
-          const refreshToken = params.get('refresh_token');
-          
-          if (accessToken && refreshToken) {
-            const { data: sessionData, error: sessionError } = await supabase.auth.setSession({
-              access_token: accessToken,
-              refresh_token: refreshToken,
-            });
-            
-            if (sessionError) throw sessionError;
-            if (sessionData.session) {
-              const user = sessionData.session.user;
-              setUser({
-                id: user.id,
-                nombre: user.user_metadata?.full_name || user.email?.split('@')[0] || 'Usuario',
-                email: user.email || '',
-              });
-              router.replace('/(tabs)');
-            }
-          }
-        }
-      }
-    } catch (error: any) {
-      const msg = error.message || 'Error al conectar con Google';
-      if (Platform.OS === 'web') alert(msg);
-      else Alert.alert('Error', msg);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleFacebookLogin = async () => {
-    try {
-      setLoading(true);
-      
-      const redirectUrl = Linking.createURL('auth/callback');
-      
-      const { data, error } = await supabase.auth.signInWithOAuth({
-        provider: 'facebook',
-        options: {
-          redirectTo: redirectUrl,
-          skipBrowserRedirect: true,
-        },
-      });
-      
-      if (error) throw error;
-
-      if (data?.url) {
-        const result = await WebBrowser.openAuthSessionAsync(
-          data.url,
-          redirectUrl
-        );
-        
-        if (result.type === 'success') {
-          const { data: { session } } = await supabase.auth.getSession();
-          if (session?.user) {
-            const user = session.user;
-            const userEmail = user.email || '';
-            const userNombre = user.user_metadata?.name || userEmail.split('@')[0];
-
-            await upsertProfile(user.id, userEmail, userNombre);
-
-            setUser({
-              id: user.id,
-              nombre: userNombre,
-              email: userEmail,
-            });
-            
-            router.replace('/(tabs)');
-          }
-        }
-      }
-    } catch (error: any) {
-      Alert.alert('Error', 'No se pudo iniciar sesión con Facebook: ' + error.message);
+      const msg = error.message || 'Ocurrió un error';
+      if (Platform.OS === 'web') alert(msg); else Alert.alert('Error', msg);
     } finally {
       setLoading(false);
     }
@@ -235,34 +97,19 @@ export default function LoginScreen() {
 
   const handleForgotPassword = async () => {
     if (!email) {
-      Alert.alert('Error', 'Por favor ingresa tu correo electrónico');
+      if (Platform.OS === 'web') alert('Ingresa tu correo'); else Alert.alert('Error', 'Ingresa tu correo');
       return;
     }
-    
     try {
       setLoading(true);
-      const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: Linking.createURL('reset-password'),
-      });
-      
-      if (error) throw error;
-      
-      Alert.alert('Correo enviado', 'Revisa tu bandeja de entrada para restablecer tu contraseña');
+      await supabase.auth.resetPasswordForEmail(email);
+      if (Platform.OS === 'web') alert('Revisa tu correo'); else Alert.alert('Éxito', 'Revisa tu correo');
     } catch (error: any) {
-      Alert.alert('Error', error.message || 'No se pudo enviar el correo');
+      if (Platform.OS === 'web') alert('Error al enviar'); else Alert.alert('Error', 'Error al enviar');
     } finally {
       setLoading(false);
     }
   };
-
-  if (loading && !email && !password) {
-    return (
-      <View style={[styles.container, styles.loadingContainer]}>
-        <ActivityIndicator size="large" color="#FF6B35" />
-        <Text style={styles.loadingText}>Cargando...</Text>
-      </View>
-    );
-  }
 
   return (
     <KeyboardAvoidingView 
@@ -334,37 +181,21 @@ export default function LoginScreen() {
           )}
 
           <TouchableOpacity 
-            style={styles.submitBtn}
+            style={[styles.submitBtn, loading && styles.submitBtnDisabled]}
             onPress={handleSubmit}
             disabled={loading}
           >
-            <Text style={styles.submitBtnText}>
-              {isLogin ? 'Iniciar Sesión' : 'Crear Cuenta'}
-            </Text>
+            {loading ? (
+              <ActivityIndicator color="#fff" />
+            ) : (
+              <Text style={styles.submitBtnText}>
+                {isLogin ? 'Iniciar Sesión' : 'Crear Cuenta'}
+              </Text>
+            )}
           </TouchableOpacity>
 
-          <View style={styles.divider}>
-            <View style={styles.dividerLine} />
-            <Text style={styles.dividerText}>o continúa con</Text>
-            <View style={styles.dividerLine} />
-          </View>
-
-          <View style={styles.socialContainer}>
-            <TouchableOpacity style={styles.socialBtn} onPress={handleGoogleLogin}>
-              <Text style={styles.socialIcon}>G</Text>
-              <Text style={styles.socialText}>Google</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.socialBtn} onPress={handleFacebookLogin}>
-              <Text style={styles.socialIcon}>f</Text>
-              <Text style={styles.socialText}>Facebook</Text>
-            </TouchableOpacity>
-          </View>
-
           <Text style={styles.terms}>
-            {isLogin 
-              ? 'Al iniciar sesión, aceptas nuestros Términos y Política de Privacidad'
-              : 'Al registrarte, aceptas nuestros Términos y Política de Privacidad'
-            }
+            Al continuar, aceptas nuestros Términos y Política de Privacidad
           </Text>
         </View>
       </ScrollView>
@@ -374,14 +205,12 @@ export default function LoginScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#FF6B35' },
-  loadingContainer: { justifyContent: 'center', alignItems: 'center' },
-  loadingText: { color: '#fff', marginTop: 10, fontSize: 16 },
   scrollContent: { flexGrow: 1, justifyContent: 'center', padding: 20 },
   logoContainer: { alignItems: 'center', marginBottom: 30 },
   logo: { fontSize: 80 },
   appName: { fontSize: 32, fontWeight: 'bold', color: '#fff', marginTop: 10 },
   tagline: { fontSize: 16, color: 'rgba(255,255,255,0.9)', marginTop: 5 },
-  formContainer: { backgroundColor: '#fff', borderRadius: 20, padding: 25 },
+  formContainer: { backgroundColor: '#fff', borderRadius: 20, padding: 25, elevation: 5 },
   tabContainer: { flexDirection: 'row', marginBottom: 25, backgroundColor: '#f0f0f0', borderRadius: 25, padding: 4 },
   tab: { flex: 1, paddingVertical: 12, alignItems: 'center', borderRadius: 20 },
   tabActive: { backgroundColor: '#FF6B35' },
@@ -392,15 +221,8 @@ const styles = StyleSheet.create({
   input: { backgroundColor: '#f5f5f5', borderRadius: 10, padding: 15, fontSize: 16 },
   forgotPassword: { alignSelf: 'flex-end', marginBottom: 20 },
   forgotPasswordText: { color: '#FF6B35', fontWeight: '600' },
-  submitBtn: { backgroundColor: '#FF6B35', padding: 16, borderRadius: 10, alignItems: 'center', marginBottom: 20 },
+  submitBtn: { backgroundColor: '#FF6B35', padding: 16, borderRadius: 10, alignItems: 'center', marginTop: 10 },
   submitBtnDisabled: { backgroundColor: '#ccc' },
   submitBtnText: { color: '#fff', fontSize: 18, fontWeight: 'bold' },
-  divider: { flexDirection: 'row', alignItems: 'center', marginBottom: 20 },
-  dividerLine: { flex: 1, height: 1, backgroundColor: '#eee' },
-  dividerText: { color: '#999', marginHorizontal: 15, fontSize: 12 },
-  socialContainer: { flexDirection: 'row', justifyContent: 'center', marginBottom: 20 },
-  socialBtn: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#f5f5f5', paddingHorizontal: 20, paddingVertical: 12, borderRadius: 10, marginHorizontal: 5 },
-  socialIcon: { fontSize: 20, fontWeight: 'bold', marginRight: 8 },
-  socialText: { fontWeight: '600' },
-  terms: { color: '#999', fontSize: 11, textAlign: 'center', lineHeight: 18 },
+  terms: { color: '#999', fontSize: 11, textAlign: 'center', marginTop: 20, lineHeight: 18 },
 });
