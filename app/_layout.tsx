@@ -5,10 +5,13 @@ import { supabase } from '../src/services/supabase';
 import { useStore } from '../src/store/useStore';
 
 export default function RootLayout() {
-  const { setUser } = useStore();
+  const { setUser, initialize } = useStore();
 
-  // Verificar sesión al cargar la app
+  // Inicializar datos y verificar sesión
   useEffect(() => {
+    // 1. Cargar productos/tiendas
+    initialize();
+
     const handleAuth = async (session: any) => {
       if (session?.user) {
         const email = session.user.email || '';
