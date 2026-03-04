@@ -5,20 +5,14 @@ import { useStore } from '../../src/store/useStore';
 import { useState } from 'react';
 
 export default function HomeScreen() {
-  const state = useStore();
-  const addToCarrito = state.addToCarrito || (() => {});
-  const favoritos = state.favoritos || [];
-  const toggleFavorito = state.toggleFavorito || (() => {});
-  const productos = state.productos || [];
-  
+  const { addToCarrito, favoritos, toggleFavorito, productos, tiendas } = useStore();
   const [categoriaSeleccionada, setCategoriaSeleccionada] = useState('Todos');
 
-  const allProducts = productos.length > 0 ? productos : MOCK_PRODUCTOS;
-  const productosFiltrados = categoriaSeleccionada === 'Todos' 
-    ? allProducts
-    : allProducts.filter(p => p.categoria === categoriaSeleccionada);
+  const filteredProducts = categoriaSeleccionada === 'Todos' 
+    ? (productos || []) 
+    : (productos || []).filter(p => p.categoria === categoriaSeleccionada);
 
-  const tiendasMostrar = MOCK_TIENDAS;
+  const activeTiendas = (tiendas || []).length > 0 ? tiendas : MOCK_TIENDAS;
 
   return (
     <ScrollView style={styles.container}>
@@ -42,10 +36,10 @@ export default function HomeScreen() {
 
       <Text style={styles.sectionTitle}>Tiendas Populares</Text>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.tiendasScroll}>
-        {tiendasMostrar.map((tienda) => (
+        {activeTiendas.map((tienda) => (
           <TouchableOpacity key={tienda.id} style={styles.tiendaCard}>
             <Image source={{ uri: tienda.fotoPerfil }} style={styles.tiendaImage} />
-            <Text style={styles.tiendaNombre}>{tienda.nombre}</Text>
+            <Text style={styles.tiendaNombre}>{tienda.nombre || tienda.nombre_tienda}</Text>
             <Text style={styles.tiendaRating}>⭐ {tienda.rating}</Text>
           </TouchableOpacity>
         ))}
@@ -53,7 +47,7 @@ export default function HomeScreen() {
 
       <Text style={styles.sectionTitle}>Productos Destacados</Text>
       <View style={styles.productosGrid}>
-        {productosFiltrados.slice(0, 6).map((producto) => {
+        {filteredProducts.slice(0, 6).map((producto) => {
           const isFavorite = favoritos.includes(producto.id);
           return (
             <TouchableOpacity

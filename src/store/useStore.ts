@@ -79,17 +79,39 @@ export const useStore = create<AppState>((set) => ({
   
   initialize: async () => {
     try {
+      // 1. Cargar Categorías (puedes crear una tabla o usarlas fijas, aquí las traemos de productos)
+      const { data: catData } = await supabase.from(TABLES.PRODUCTOS).select('categoria').not('categoria', 'is', null);
+      const uniqueCats = ['Todos', ...new Set((catData || []).map(item => item.categoria))];
+
+      // 2. Cargar productos y tiendas
       const { data: p } = await supabase.from(TABLES.PRODUCTOS).select('*').eq('activo', true);
       const { data: t } = await supabase.from(TABLES.TIENDAS).select('*').eq('activa', true);
       
+      const formattedProducts = (p || []).map((item: any) => ({
+        ...item,
+        tiendaId: item.tienda_id,
+        fotos: item.fotos || ['https://picsum.photos/400/400']
+      }));
+
       set({
-        productos: (p && p.length > 0) ? p.map((item: any) => ({ ...item, tiendaId: item.tienda_id })) : MOCK_PRODUCTOS,
-        tiendas: (t && t.length > 0) ? t : MOCK_TIENDAS,
+        productos: formattedProducts.length > 0 ? formattedProducts : MOCK_PRODUCTOS,
+        tiendas: t || MOCK_TIENDAS,
         initialized: true,
       });
     } catch (e) {
+      console.error('Store Init Error:', e);
       set({ productos: MOCK_PRODUCTOS, tiendas: MOCK_TIENDAS, initialized: true });
     }
+  },
+
+  loadUserExtras: async (userId: string) => {
+    try {
+      const { data: favs } = await supabase.from('perfiles').select('favoritos').eq('id', userId).single();
+      if (favs?.favoritos) set({ favoritos: favs.favoritos });
+
+      const { data: carts } = await supabase.from('perfiles').select('carrito').eq('id', userId).single();
+      if (carts?.carrito) set({ carrito: carts.carrito });
+    } catch (e) {}
   },
 
   toggleFavorito: (id) => set((s) => ({
