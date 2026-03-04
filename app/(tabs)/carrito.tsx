@@ -1,46 +1,52 @@
-import { View, Text, FlatList, TouchableOpacity, Image, StyleSheet, Alert } from 'react-native';
+import { View, Text, FlatList, TouchableOpacity, Image, StyleSheet, Alert, Platform } from 'react-native';
 import { useStore } from '../../src/store/useStore';
 import { router } from 'expo-router';
 
 export default function CarritoScreen() {
-  const { carrito, removeFromCarrito, clearCarrito, addPedido } = useStore();
+  const { carrito, removeFromCarrito, colors } = useStore();
 
-  const subtotal = carrito.reduce((sum, item) => sum + item.producto.precio * item.cantidad, 0);
-  const comision = subtotal * 0.1;
-  const total = subtotal; // El cliente paga solo el subtotal
-  const montoVendedor = subtotal - comision; // El vendedor recibe esto (90%)
+  const subtotal = (carrito || []).reduce((sum, item) => sum + item.producto.precio * item.cantidad, 0);
+  const total = subtotal;
 
   const handleCheckout = () => {
-    if (carrito.length === 0) {
-      Alert.alert('Carrito vacío', 'Agrega productos al carrito primero');
+    if ((carrito || []).length === 0) {
+      if (Platform.OS === 'web') alert('Carrito vacío');
+      else Alert.alert('Carrito vacío', 'Agrega productos al carrito primero');
       return;
     }
-
     router.push('/checkout');
   };
 
-  if (carrito.length === 0) {
+  if ((carrito || []).length === 0) {
     return (
-      <View style={styles.emptyContainer}>
+      <View style={[styles.emptyContainer, { backgroundColor: colors.background }]}>
         <Text style={styles.emptyIcon}>🛒</Text>
-        <Text style={styles.emptyText}>Tu carrito está vacío</Text>
-        <Text style={styles.emptySubtext}>Explora y agrega productos</Text>
+        <Text style={[styles.emptyText, { color: colors.text }]}>Tu carrito está vacío</Text>
+        <TouchableOpacity 
+          style={[styles.checkoutBtn, { backgroundColor: colors.primary, width: 200, marginTop: 20 }]}
+          onPress={() => router.push('/(tabs)/explorar')}
+        >
+          <Text style={styles.checkoutBtnText}>Explorar</Text>
+        </TouchableOpacity>
       </View>
     );
   }
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
       <FlatList
         data={carrito}
         keyExtractor={(item) => item.producto.id}
         renderItem={({ item }) => (
-          <View style={styles.itemCard}>
-            <Image source={{ uri: item.producto.foto }} style={styles.itemImage} />
+          <View style={[styles.itemCard, { backgroundColor: colors.card }]}>
+            <Image 
+              source={{ uri: item.producto.fotos?.[0] || 'https://picsum.photos/400/400' }} 
+              style={styles.itemImage} 
+            />
             <View style={styles.itemInfo}>
-              <Text style={styles.itemNombre} numberOfLines={1}>{item.producto.nombre}</Text>
-              <Text style={styles.itemPrecio}>${item.producto.precio}</Text>
-              <Text style={styles.itemCantidad}>Cantidad: {item.cantidad}</Text>
+              <Text style={[styles.itemNombre, { color: colors.text }]} numberOfLines={1}>{item.producto.nombre}</Text>
+              <Text style={[styles.itemPrecio, { color: colors.primary }]}>${item.producto.precio}</Text>
+              <Text style={[styles.itemCantidad, { color: colors.subtext }]}>Cantidad: {item.cantidad}</Text>
             </View>
             <TouchableOpacity onPress={() => removeFromCarrito(item.producto.id)} style={styles.removeBtn}>
               <Text style={styles.removeBtnText}>✕</Text>
@@ -49,25 +55,17 @@ export default function CarritoScreen() {
         )}
       />
 
-      <View style={styles.resumen}>
+      <View style={[styles.resumen, { backgroundColor: colors.card, borderTopColor: colors.border }]}>
         <View style={styles.resumenRow}>
-          <Text style={styles.resumenLabel}>Subtotal</Text>
-          <Text style={styles.resumenValue}>${subtotal.toFixed(2)}</Text>
+          <Text style={[styles.resumenLabel, { color: colors.subtext }]}>Subtotal</Text>
+          <Text style={[styles.resumenValue, { color: colors.text }]}>${subtotal.toFixed(2)}</Text>
         </View>
-        <View style={[styles.resumenRow, { backgroundColor: '#e8f5e9', padding: 8, borderRadius: 8 }]}>
-          <Text style={[styles.resumenLabel, { color: '#2e7d32' }]}>💡 Comisión (10%)</Text>
-          <Text style={[styles.resumenValue, { color: '#2e7d32' }]}>-${comision.toFixed(2)}</Text>
-        </View>
-        <View style={styles.resumenRow}>
-          <Text style={[styles.resumenLabel, { fontSize: 12, color: '#666' }]}>El vendedor recibe:</Text>
-          <Text style={[styles.resumenValue, { fontSize: 12, color: '#666' }]}>${montoVendedor.toFixed(2)}</Text>
-        </View>
-        <View style={[styles.resumenRow, styles.totalRow]}>
-          <Text style={styles.totalLabel}>Total a pagar</Text>
-          <Text style={styles.totalValue}>${total.toFixed(2)}</Text>
+        <View style={[styles.resumenRow, styles.totalRow, { borderTopColor: colors.border }]}>
+          <Text style={[styles.totalLabel, { color: colors.text }]}>Total</Text>
+          <Text style={[styles.totalValue, { color: colors.primary }]}>${total.toFixed(2)}</Text>
         </View>
 
-        <TouchableOpacity style={styles.checkoutBtn} onPress={handleCheckout}>
+        <TouchableOpacity style={[styles.checkoutBtn, { backgroundColor: colors.primary }]} onPress={handleCheckout}>
           <Text style={styles.checkoutBtnText}>Hacer Pedido</Text>
         </TouchableOpacity>
       </View>
@@ -76,26 +74,25 @@ export default function CarritoScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f5f5f5' },
-  emptyContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#f5f5f5' },
+  container: { flex: 1 },
+  emptyContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   emptyIcon: { fontSize: 80 },
-  emptyText: { fontSize: 20, fontWeight: 'bold', color: '#333', marginTop: 20 },
-  emptySubtext: { fontSize: 16, color: '#666', marginTop: 5 },
-  itemCard: { flexDirection: 'row', backgroundColor: '#fff', margin: 10, padding: 15, borderRadius: 12, elevation: 2 },
+  emptyText: { fontSize: 20, fontWeight: 'bold', marginTop: 20 },
+  itemCard: { flexDirection: 'row', margin: 10, padding: 15, borderRadius: 12, elevation: 2 },
   itemImage: { width: 80, height: 80, borderRadius: 8 },
   itemInfo: { flex: 1, marginLeft: 15, justifyContent: 'center' },
   itemNombre: { fontSize: 16, fontWeight: 'bold' },
-  itemPrecio: { fontSize: 18, fontWeight: 'bold', color: '#FF6B35', marginTop: 5 },
-  itemCantidad: { color: '#666', marginTop: 5 },
+  itemPrecio: { fontSize: 18, fontWeight: 'bold', marginTop: 5 },
+  itemCantidad: { marginTop: 5 },
   removeBtn: { padding: 10 },
   removeBtnText: { fontSize: 20, color: '#ff4444' },
-  resumen: { backgroundColor: '#fff', padding: 20, borderTopWidth: 1, borderColor: '#eee' },
+  resumen: { padding: 20, borderTopWidth: 1 },
   resumenRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 10 },
-  resumenLabel: { color: '#666', fontSize: 14 },
+  resumenLabel: { fontSize: 14 },
   resumenValue: { fontSize: 14 },
-  totalRow: { borderTopWidth: 1, borderColor: '#eee', paddingTop: 10, marginTop: 10 },
+  totalRow: { borderTopWidth: 1, paddingTop: 10, marginTop: 10 },
   totalLabel: { fontSize: 18, fontWeight: 'bold' },
-  totalValue: { fontSize: 18, fontWeight: 'bold', color: '#FF6B35' },
-  checkoutBtn: { backgroundColor: '#FF6B35', padding: 15, borderRadius: 10, alignItems: 'center', marginTop: 15 },
+  totalValue: { fontSize: 18, fontWeight: 'bold' },
+  checkoutBtn: { padding: 15, borderRadius: 10, alignItems: 'center', marginTop: 15 },
   checkoutBtnText: { color: '#fff', fontSize: 18, fontWeight: 'bold' },
 });

@@ -6,16 +6,13 @@ import { useStore } from '../src/store/useStore';
 import { View, ActivityIndicator } from 'react-native';
 
 export default function RootLayout() {
-  const { setUser, initialize } = useStore();
+  const { setUser, initialize, colors, loadUserExtras, loadPedidos } = useStore();
   const [isReady, setIsReady] = useState(false);
 
   useEffect(() => {
     const setupApp = async () => {
       try {
-        // 1. Inicializar datos (productos/tiendas)
         await initialize();
-
-        // 2. Verificar sesión inicial
         const { data: { session } } = await supabase.auth.getSession();
         if (session?.user) {
           const email = session.user.email || '';
@@ -25,6 +22,9 @@ export default function RootLayout() {
             nombre: nombre,
             email: email,
           });
+          // Cargar datos extra del usuario
+          await loadUserExtras(session.user.id);
+          await loadPedidos(session.user.id);
         }
       } catch (error) {
         console.error('Setup error:', error);
@@ -35,8 +35,7 @@ export default function RootLayout() {
 
     setupApp();
 
-    // Escuchar cambios de auth
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (session?.user) {
         const email = session.user.email || '';
         const nombre = session.user.user_metadata?.full_name || session.user.user_metadata?.name || email.split('@')[0] || 'Usuario';
@@ -45,6 +44,8 @@ export default function RootLayout() {
           nombre: nombre,
           email: email,
         });
+        await loadUserExtras(session.user.id);
+        await loadPedidos(session.user.id);
       } else if (event === 'SIGNED_OUT') {
         setUser(null);
       }
@@ -55,7 +56,7 @@ export default function RootLayout() {
 
   if (!isReady) {
     return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#FF6B35' }}>
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: colors?.primary || '#FF6B35' }}>
         <ActivityIndicator color="#fff" size="large" />
       </View>
     );
@@ -65,10 +66,10 @@ export default function RootLayout() {
     <SafeAreaProvider>
       <Stack
         screenOptions={{
-          headerStyle: { backgroundColor: '#FF6B35' },
+          headerStyle: { backgroundColor: colors?.primary || '#FF6B35' },
           headerTintColor: '#ffffff',
           headerTitleStyle: { fontWeight: 'bold' },
-          contentStyle: { backgroundColor: '#f8f8f8' },
+          contentStyle: { backgroundColor: colors?.background || '#f8f8f8' },
         }}
       >
         <Stack.Screen name="index" options={{ headerShown: false }} />

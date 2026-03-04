@@ -1,356 +1,122 @@
 import { View, Text, TouchableOpacity, StyleSheet, Switch, Alert, ScrollView, Platform } from 'react-native';
 import { useStore } from '../../src/store/useStore';
 import { router } from 'expo-router';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { supabase } from '../../src/services/supabase';
 
-const TERMINOS = `
-TÉRMINOS Y CONDICIONES DE ZOCALOTRADE
-
-Última actualización: Marzo 2026
-
-1. ACEPTACIÓN DE TÉRMINOS
-Al usar ZocaloTrade, aceptas estos términos.
-
-2. DESCRIPCIÓN DEL SERVICIO
-ZocaloTrade es un marketplace que conecta compradores con vendedores del Zócalo de Ciudad de México.
-
-3. COMISIONES
-- Comisión del 10% por cada venta exitosa
-- El vendedor recibe el 90% del precio del producto
-
-4. PAGOS
-- El cliente paga el envío por adelantado
-- El producto se paga al repartidor (contraentrega)
-- Aceptamos tarjetas de débito/crédito y efectivo
-
-5. ENVÍOS
-- Entregamos en toda la CDMX y área metropolitana
-- El repartidor contactará al cliente antes de entregar
-
-6. POLÍTICA DE DEVOLUCIONES
-- Solo se aceptan devoluciones si el producto arrive dañado o no arrive
-- Contacta soporte dentro de 24 horas
-
-7. CUENTA DE USUARIO
-- Debes proporcionar información真实的
-- Eres responsable de tu cuenta y contraseña
-
-8. CONTACTO
-soporte@zocalotrade.com
-`;
-
-const PRIVACIDAD = `
-POLÍTICA DE PRIVACIDAD DE ZOCALOTRADE
-
-Última actualización: Marzo 2026
-
-1. INFORMACIÓN QUE RECOLECTAMOS
-- Nombre y correo electrónico
-- Dirección de entrega
-- Historial de pedidos
-- Información de pago (de forma segura)
-
-2. CÓMO USAMOS TU INFORMACIÓN
-- Procesar tus pedidos
-- Enviar notificaciones sobre pedidos
-- Mejorar nuestros servicios
-
-3. PROTECCIÓN DE DATOS
-- Tus datos están encriptados
-- No vendemos tu información a terceros
-- Almacenamiento seguro en Supabase
-
-4. TUS DERECHOS
-- Acceder a tus datos
-- Corregir información incorrecta
-- Solicitar eliminación de datos
-
-5. CONTACTO
-privacidad@zocalotrade.com
-`;
-
 export default function PerfilScreen() {
-  const state = useStore();
-  const user = state.user;
-  const rol = state.rol || 'cliente';
-  const setRol = state.setRol || (() => {});
-  const pedidos = state.pedidos || [];
-  const setUser = state.setUser || (() => {});
-  
+  const { user, rol, setRol, pedidos, setUser, colors, darkMode, setDarkMode } = useStore();
   const [isVendedor, setIsVendedor] = useState(rol === 'vendedor');
 
   const toggleRol = (value: boolean) => {
     setIsVendedor(value);
     setRol(value ? 'vendedor' : 'cliente');
-    Alert.alert(
-      value ? '¡Ahora eres vendedor!' : '¡Ahora eres cliente!',
-      value 
-        ? 'Puedes agregar productos al marketplace'
-        : 'Solo puedes comprar productos'
-    );
+    if (Platform.OS === 'web') alert(value ? '¡Ahora eres vendedor!' : '¡Ahora eres cliente!');
+    else Alert.alert(value ? '¡Ahora eres vendedor!' : '¡Ahora eres cliente!');
   };
 
-  const pedidosCount = pedidos.length;
-  const totalGastado = pedidos.reduce((sum, p) => sum + (p.total || 0), 0);
+  const pedidosCount = (pedidos || []).length;
+  const totalGastado = (pedidos || []).reduce((sum, p) => sum + (p.total || 0), 0);
 
   const handleLogout = async () => {
-    if (Platform.OS === 'web') {
-      const confirmLogout = window.confirm('¿Estás seguro de que quieres cerrar sesión?');
-      if (confirmLogout) {
-        await supabase.auth.signOut();
-        setUser(null);
-        router.replace('/login');
-      }
-      return;
+    const confirmed = Platform.OS === 'web' 
+      ? window.confirm('¿Estás seguro?') 
+      : await new Promise(resolve => {
+          Alert.alert('Cerrar Sesión', '¿Estás seguro?', [
+            { text: 'No', onPress: () => resolve(false) },
+            { text: 'Sí', onPress: () => resolve(true) }
+          ]);
+        });
+
+    if (confirmed) {
+      await supabase.auth.signOut();
+      setUser(null);
+      router.replace('/login');
     }
-
-    Alert.alert(
-      'Cerrar Sesión',
-      '¿Estás seguro de que quieres cerrar sesión?',
-      [
-        { text: 'Cancelar', style: 'cancel' },
-        { 
-          text: 'Cerrar Sesión', 
-          style: 'destructive',
-          onPress: async () => {
-            await supabase.auth.signOut();
-            setUser(null);
-            router.replace('/login');
-          }
-        },
-      ]
-    );
   };
 
-  const handleLogin = () => {
-    router.push('/login');
-  };
-
-  const getGreeting = () => {
-    const hour = new Date().getHours();
-    if (hour < 12) return '🌅 Buenos días';
-    if (hour < 18) return '☀️ Buenas tardes';
-    return '🌙 Buenas noches';
-  };
-
-  // Si no hay usuario logueado, mostrar botón de iniciar sesión
   if (!user) {
     return (
-      <ScrollView style={styles.container}>
-        <View style={styles.header}>
-          <View style={styles.avatar}>
-            <Text style={styles.avatarText}>👤</Text>
-          </View>
-          <Text style={styles.nombre}>Usuario Invitado</Text>
-          <Text style={styles.email}>Inicia sesión para ver tu perfil</Text>
-        </View>
-
-        <View style={styles.section}>
-          <TouchableOpacity 
-            style={styles.loginRequiredBtn}
-            onPress={handleLogin}
-          >
-            <Text style={styles.loginRequiredBtnText}>🔐 Iniciar Sesión</Text>
-          </TouchableOpacity>
-          
-          <TouchableOpacity 
-            style={[styles.loginRequiredBtn, { backgroundColor: '#FF6B35', marginTop: 10 }]}
-            onPress={handleLogin}
-          >
-            <Text style={[styles.loginRequiredBtnText, { color: '#fff' }]}>📝 Regístrate</Text>
-          </TouchableOpacity>
-        </View>
-
-        <View style={styles.footer}>
-          <Text style={styles.footerText}>ZocaloTrade v1.0.0</Text>
-          <Text style={styles.footerText}>© 2026 ZocaloTrade</Text>
-        </View>
-      </ScrollView>
+      <View style={[styles.container, { backgroundColor: colors.background, justifyContent: 'center', alignItems: 'center' }]}>
+        <Text style={[styles.avatarText, { fontSize: 80 }]}>👤</Text>
+        <Text style={[styles.nombre, { color: colors.text }]}>Invitado</Text>
+        <TouchableOpacity 
+          style={[styles.loginRequiredBtn, { backgroundColor: colors.primary, marginTop: 20 }]}
+          onPress={() => router.push('/login')}
+        >
+          <Text style={{ color: '#fff', fontWeight: 'bold' }}>Iniciar Sesión</Text>
+        </TouchableOpacity>
+      </View>
     );
   }
 
   return (
-    <ScrollView style={styles.container}>
-      <View style={styles.header}>
+    <ScrollView style={[styles.container, { backgroundColor: colors.background }]}>
+      <View style={[styles.header, { backgroundColor: colors.primary }]}>
         <View style={styles.avatar}>
-          <Text style={styles.avatarText}>👤</Text>
+          <Text style={styles.avatarText}>{user.fotoPerfil ? '🖼️' : '👤'}</Text>
         </View>
-        <Text style={styles.nombre}>{user?.nombre || 'Usuario ZocaloTrade'}</Text>
-        <Text style={styles.email}>{user?.email || 'usuario@zocalotrade.com'}</Text>
-        <Text style={styles.greeting}>{getGreeting()}</Text>
+        <Text style={styles.nombre}>{user.nombre}</Text>
+        <Text style={styles.email}>{user.email}</Text>
         
-        <TouchableOpacity 
-          style={styles.logoutBtn}
-          onPress={handleLogout}
-        >
-          <Text style={styles.logoutBtnText}>🚪 Cerrar Sesión</Text>
+        <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout}>
+          <Text style={styles.logoutBtnText}>Cerrar Sesión</Text>
         </TouchableOpacity>
       </View>
 
-      <View style={styles.statsContainer}>
-        <TouchableOpacity style={styles.stat} onPress={() => router.push('/pedidos')}>
-          <Text style={styles.statValue}>{pedidosCount}</Text>
-          <Text style={styles.statLabel}>Pedidos</Text>
-        </TouchableOpacity>
-        <View style={styles.statDivider} />
+      <View style={[styles.statsContainer, { backgroundColor: colors.card }]}>
         <View style={styles.stat}>
-          <Text style={styles.statValue}>${totalGastado.toFixed(0)}</Text>
-          <Text style={styles.statLabel}>Total Gastado</Text>
+          <Text style={[styles.statValue, { color: colors.primary }]}>{pedidosCount}</Text>
+          <Text style={[styles.statLabel, { color: colors.subtext }]}>Pedidos</Text>
         </View>
-        <View style={styles.statDivider} />
+        <View style={[styles.statDivider, { backgroundColor: colors.border }]} />
         <View style={styles.stat}>
-          <Text style={styles.statValue}>⭐ 5.0</Text>
-          <Text style={styles.statLabel}>Calificación</Text>
+          <Text style={[styles.statValue, { color: colors.primary }]}>${totalGastado}</Text>
+          <Text style={[styles.statLabel, { color: colors.subtext }]}>Gastado</Text>
         </View>
       </View>
 
-      {isVendedor && (
-        <View>
-          <TouchableOpacity 
-            style={[styles.vendedorBanner, { backgroundColor: '#27ae60' }]}
-            onPress={() => router.push('/mis-productos')}
-          >
-            <View>
-              <Text style={styles.vendedorBannerTitle}>🏪 Mi Tienda</Text>
-              <Text style={styles.vendedorBannerText}>Gestiona tus productos</Text>
-            </View>
-            <Text style={styles.vendedorBannerArrow}>→</Text>
-          </TouchableOpacity>
-          
-          <TouchableOpacity 
-            style={[styles.vendedorBanner, { backgroundColor: '#3498db', marginTop: 10, marginHorizontal: 15 }]}
-            onPress={() => router.push('/pedidos-vendedor')}
-          >
-            <View>
-              <Text style={styles.vendedorBannerTitle}>📦 Pedidos</Text>
-              <Text style={styles.vendedorBannerText}>Ver pedidos de tus productos</Text>
-            </View>
-            <Text style={styles.vendedorBannerArrow}>→</Text>
-          </TouchableOpacity>
-        </View>
-      )}
-
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Modo Vendedor</Text>
+      <View style={[styles.section, { backgroundColor: colors.card }]}>
+        <Text style={[styles.sectionTitle, { color: colors.text }]}>Configuración</Text>
         <View style={styles.switchRow}>
-          <View>
-            <Text style={styles.switchLabel}>Quiero vender en ZocaloTrade</Text>
-            <Text style={styles.switchDesc}>Activa para agregar productos</Text>
-          </View>
-          <Switch
-            value={isVendedor}
-            onValueChange={toggleRol}
-            trackColor={{ false: '#ddd', true: '#FF6B35' }}
-            thumbColor="#fff"
-          />
+          <Text style={[styles.switchLabel, { color: colors.text }]}>Modo Vendedor</Text>
+          <Switch value={isVendedor} onValueChange={toggleRol} trackColor={{ true: colors.primary }} />
+        </View>
+        <View style={styles.switchRow}>
+          <Text style={[styles.switchLabel, { color: colors.text }]}>Modo Oscuro</Text>
+          <Switch value={darkMode} onValueChange={setDarkMode} trackColor={{ true: colors.primary }} />
         </View>
       </View>
 
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Mis Compras</Text>
-        
-        <TouchableOpacity style={styles.menuItem} onPress={() => router.push('/pedidos')}>
-          <Text style={styles.menuIcon}>📦</Text>
-          <Text style={styles.menuText}>Mis Pedidos</Text>
-          <Text style={styles.menuArrow}>→</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity style={styles.menuItem} onPress={() => router.push('/direcciones')}>
-          <Text style={styles.menuIcon}>📍</Text>
-          <Text style={styles.menuText}>Mis Direcciones</Text>
-          <Text style={styles.menuArrow}>→</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity style={styles.menuItem} onPress={() => router.push('/metodos-pago')}>
-          <Text style={styles.menuIcon}>💳</Text>
-          <Text style={styles.menuText}>Métodos de Pago</Text>
-          <Text style={styles.menuArrow}>→</Text>
-        </TouchableOpacity>
-      </View>
-
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Cuenta</Text>
-        
-        <TouchableOpacity style={styles.menuItem} onPress={() => router.push('/notificaciones')}>
-          <Text style={styles.menuIcon}>🔔</Text>
-          <Text style={styles.menuText}>Notificaciones</Text>
-          <Text style={styles.menuArrow}>→</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity style={styles.menuItem} onPress={() => router.push('/configuracion')}>
-          <Text style={styles.menuIcon}>⚙️</Text>
-          <Text style={styles.menuText}>Configuración</Text>
-          <Text style={styles.menuArrow}>→</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity style={styles.menuItem} onPress={() => router.push('/chat-soporte')}>
-          <Text style={styles.menuIcon}>❓</Text>
-          <Text style={styles.menuText}>Ayuda y Soporte</Text>
-          <Text style={styles.menuArrow}>→</Text>
-        </TouchableOpacity>
-      </View>
-
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Acerca de</Text>
-        
-        <TouchableOpacity style={styles.menuItem} onPress={() => Alert.alert('Términos y Condiciones', TERMINOS)}>
-          <Text style={styles.menuIcon}>📖</Text>
-          <Text style={styles.menuText}>Términos y Condiciones</Text>
-          <Text style={styles.menuArrow}>→</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity style={styles.menuItem} onPress={() => Alert.alert('Política de Privacidad', PRIVACIDAD)}>
-          <Text style={styles.menuIcon}>🔒</Text>
-          <Text style={styles.menuText}>Política de Privacidad</Text>
-          <Text style={styles.menuArrow}>→→</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity style={styles.menuItem} onPress={() => Alert.alert('Política de Privacidad', 'Política de Privacidad de ZocaloTrade:\n\nTus datos están seguros. No compartimos información con terceros.')}>
-          <Text style={styles.menuIcon}>🔒</Text>
-          <Text style={styles.menuText}>Política de Privacidad</Text>
-          <Text style={styles.menuArrow}>→</Text>
-        </TouchableOpacity>
-      </View>
-
-      <View style={styles.footer}>
-        <Text style={styles.footerText}>ZocaloTrade v1.0.0</Text>
-        <Text style={styles.footerText}>© 2026 ZocaloTrade</Text>
-      </View>
+      <TouchableOpacity 
+        style={[styles.menuItem, { backgroundColor: colors.card, marginTop: 10, padding: 15 }]}
+        onPress={() => router.push('/configuracion')}
+      >
+        <Text style={[styles.menuText, { color: colors.text }]}>⚙️ Ajustes Avanzados</Text>
+      </TouchableOpacity>
     </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f0f0f0' },
-  header: { backgroundColor: '#FF6B35', padding: 30, alignItems: 'center' },
+  container: { flex: 1 },
+  header: { padding: 40, alignItems: 'center' },
   avatar: { width: 80, height: 80, borderRadius: 40, backgroundColor: '#fff', justifyContent: 'center', alignItems: 'center' },
   avatarText: { fontSize: 40 },
-  nombre: { fontSize: 22, fontWeight: 'bold', color: '#ffffff', marginTop: 15 },
-  email: { fontSize: 14, color: '#ffffff', opacity: 0.9, marginTop: 5 },
-  greeting: { fontSize: 14, color: '#ffffff', opacity: 0.8, marginTop: 10 },
-  logoutBtn: { backgroundColor: 'rgba(255,255,255,0.2)', paddingHorizontal: 15, paddingVertical: 8, borderRadius: 20, marginTop: 10 },
-  logoutBtnText: { color: '#fff', fontSize: 14, fontWeight: '600' },
-  loginRequiredBtn: { backgroundColor: '#fff', borderWidth: 2, borderColor: '#FF6B35', padding: 15, borderRadius: 12, alignItems: 'center' },
-  loginRequiredBtnText: { color: '#FF6B35', fontSize: 16, fontWeight: 'bold' },
-  statsContainer: { flexDirection: 'row', backgroundColor: '#ffffff', marginTop: -20, marginHorizontal: 15, borderRadius: 12, padding: 20, elevation: 3 },
+  nombre: { fontSize: 22, fontWeight: 'bold', color: '#fff', marginTop: 15 },
+  email: { fontSize: 14, color: '#fff', opacity: 0.8 },
+  logoutBtn: { marginTop: 20, backgroundColor: 'rgba(255,255,255,0.2)', padding: 8, borderRadius: 20 },
+  logoutBtnText: { color: '#fff', fontSize: 12 },
+  statsContainer: { flexDirection: 'row', margin: 15, borderRadius: 12, padding: 20, elevation: 2, marginTop: -20 },
   stat: { flex: 1, alignItems: 'center' },
-  statDivider: { width: 1, backgroundColor: '#eee' },
-  statValue: { fontSize: 22, fontWeight: 'bold', color: '#FF6B35' },
-  statLabel: { color: '#666', marginTop: 5, fontSize: 12 },
-  vendedorBanner: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#27ae60', margin: 15, padding: 20, borderRadius: 12 },
-  vendedorBannerTitle: { fontSize: 18, fontWeight: 'bold', color: '#ffffff' },
-  vendedorBannerText: { color: '#ffffff', opacity: 0.9, marginTop: 4 },
-  vendedorBannerArrow: { fontSize: 24, color: '#ffffff' },
-  section: { backgroundColor: '#ffffff', marginTop: 15, padding: 15 },
-  sectionTitle: { fontSize: 16, fontWeight: 'bold', marginBottom: 15, color: '#333' },
-  switchRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  switchLabel: { fontSize: 16, color: '#333' },
-  switchDesc: { color: '#666', fontSize: 12, marginTop: 2 },
-  menuItem: { flexDirection: 'row', alignItems: 'center', paddingVertical: 15, borderBottomWidth: 1, borderColor: '#eee' },
-  menuIcon: { fontSize: 20, marginRight: 15, width: 25, textAlign: 'center' },
-  menuText: { flex: 1, fontSize: 16, color: '#333' },
-  menuArrow: { color: '#999', fontSize: 18 },
-  footer: { alignItems: 'center', padding: 20 },
-  footerText: { color: '#999', fontSize: 12, marginTop: 4 },
+  statDivider: { width: 1, height: '100%' },
+  statValue: { fontSize: 20, fontWeight: 'bold' },
+  statLabel: { fontSize: 12, marginTop: 4 },
+  section: { margin: 15, borderRadius: 12, padding: 15 },
+  sectionTitle: { fontSize: 16, fontWeight: 'bold', marginBottom: 15 },
+  switchRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 },
+  switchLabel: { fontSize: 15 },
+  menuItem: { marginHorizontal: 15, borderRadius: 12 },
+  menuText: { fontSize: 16 },
+  loginRequiredBtn: { padding: 15, borderRadius: 12, width: 200, alignItems: 'center' },
 });
