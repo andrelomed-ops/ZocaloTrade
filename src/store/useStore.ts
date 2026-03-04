@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { persist, createJSONStorage } from 'zustand/middleware';
 import { supabase, TABLES } from '../services/supabase';
 
 export interface Producto {
@@ -104,151 +105,176 @@ interface AppState {
   toggleFavorito: (productoId: string) => void;
 }
 
-export const useStore = create<AppState>((set, get) => ({
-  user: null,
-  rol: 'cliente',
-  productos: [],
-  tiendas: [],
-  carrito: [],
-  pedidos: [],
-  favoritos: [],
-  initialized: false,
-  darkMode: false,
-  
-  setUser: (user) => set({ user }),
-  setRol: (rol) => set({ rol }),
-  setDarkMode: (darkMode) => set({ darkMode }),
-  
-  initialize: async () => {
-    try {
-      const { data: productosData } = await supabase.from(TABLES.PRODUCTOS).select('*').eq('activo', true);
-      const { data: tiendasData } = await supabase.from(TABLES.TIENDAS).select('*').eq('activa', true);
+export const useStore = create<AppState>()(
+  persist(
+    (set, get) => ({
+      user: null,
+      rol: 'cliente',
+      productos: [],
+      tiendas: [],
+      carrito: [],
+      pedidos: [],
+      favoritos: [],
+      initialized: false,
+      darkMode: false,
       
-      const productos: Producto[] = (productosData || []).map((p: any) => ({
-        id: p.id,
-        nombre: p.nombre,
-        descripcion: p.descripcion || '',
-        precio: Number(p.precio),
-        categoria: p.categoria || 'General',
-        fotos: p.fotos || ['https://picsum.photos/400/400'],
-        tiendaId: p.tienda_id,
-        disponible: p.activo,
-        envio_incluido: p.envio_incluido,
-        stock: p.stock,
-      }));
+      setUser: (user) => set({ user }),
+      setRol: (rol) => set({ rol }),
+      setDarkMode: (darkMode) => set({ darkMode }),
       
-      const tiendas: Tienda[] = (tiendasData || []).map((t: any) => ({
-        id: t.id,
-        nombre: t.nombre,
-        descripcion: t.descripcion || '',
-        direccion: 'Entregas en todo el Zócalo, CDMX',
-        latitud: 0,
-        longitud: 0,
-        fotoPerfil: t.foto_perfil || 'https://picsum.photos/100/100',
-        rating: Number(t.rating) || 0,
-        categoria: t.categoria || 'General',
-      }));
+      initialize: async () => {
+        try {
+          const { data: productosData } = await supabase.from(TABLES.PRODUCTOS).select('*').eq('activo', true);
+          const { data: tiendasData } = await supabase.from(TABLES.TIENDAS).select('*').eq('activa', true);
+          
+          const productos: Producto[] = (productosData || []).map((p: any) => ({
+            id: p.id,
+            nombre: p.nombre,
+            descripcion: p.descripcion || '',
+            precio: Number(p.precio),
+            fotos: p.fotos || ['https://picsum.photos/400/400'],
+            tiendaId: p.tienda_id,
+            disponible: p.activo,
+            categoria: p.categoria || 'General'
+          }));
+          
+          const tiendas: Tienda[] = (tiendasData || []).map((t: any) => ({
+            id: t.id,
+            nombre: t.nombre,
+            descripcion: t.descripcion || '',
+            direccion: 'Zócalo, CDMX',
+            latitud: 0,
+            longitud: 0,
+            fotoPerfil: t.foto_perfil || 'https://picsum.photos/100/100',
+            rating: Number(t.rating) || 0,
+            categoria: t.categoria || 'General',
+          }));
+          
+          set({
+            productos: productos.length > 0 ? productos : MOCK_PRODUCTOS,
+            tiendas: tiendas.length > 0 ? tiendas : MOCK_TIENDAS,
+            initialized: true,
+          });
+        } catch (e) {
+          set({ productos: MOCK_PRODUCTOS, tiendas: MOCK_TIENDAS, initialized: true });
+        }
+      },
       
-      set({
-        productos: productos.length > 0 ? productos : MOCK_PRODUCTOS,
-        tiendas: tiendas.length > 0 ? tiendas : MOCK_TIENDAS,
-        initialized: true,
-      });
-    } catch (e) {
-      set({ productos: MOCK_PRODUCTOS, tiendas: MOCK_TIENDAS, initialized: true });
-    }
-  },
-  
-  addProducto: (producto) => set((state) => ({ productos: [...state.productos, producto] })),
-  updateProducto: (productoId, updates) => set((state) => ({
-    productos: state.productos.map(p => p.id === productoId ? { ...p, ...updates } : p)
-  })),
-  deleteProducto: (productoId) => set((state) => ({
-    productos: state.productos.filter(p => p.id !== productoId)
-  })),
-  addToCarrito: (producto, cantidad = 1) => set((state) => {
-    const existing = state.carrito.find(item => item.producto.id === producto.id);
-    if (existing) {
-      return {
-        carrito: state.carrito.map(item =>
-          item.producto.id === producto.id ? { ...item, cantidad: item.cantidad + cantidad } : item
-        )
-      };
-    }
-    return { carrito: [...state.carrito, { producto, cantidad }] };
-  }),
-  removeFromCarrito: (productoId) => set((state) => ({
-    carrito: state.carrito.filter(item => item.producto.id !== productoId)
-  })),
-  updateCarritoCantidad: (productoId, cantidad) => set((state) => ({
-    carrito: cantidad <= 0 
-      ? state.carrito.filter(item => item.producto.id !== productoId)
-      : state.carrito.map(item => item.producto.id === productoId ? { ...item, cantidad } : item)
-  })),
-  clearCarrito: () => set({ carrito: [] }),
-  
-  addPedido: async (pedido) => {
-    try {
-      await supabase.from(TABLES.PEDIDOS).insert({
-        cliente_id: pedido.clienteId,
-        tienda_id: pedido.tiendaId,
-        productos: pedido.productos.map(p => ({
-          producto_id: p.producto.id,
-          cantidad: p.cantidad,
-          precio: p.producto.precio,
-          nombre: p.producto.nombre,
-        })),
-        subtotal: pedido.subtotal,
-        comision: pedido.comision,
-        total: pedido.total,
-        status: pedido.status,
-        direccion_entrega: pedido.direccionEntrega,
-        metodo_pago: pedido.metodoPago,
-      });
-      set((state) => ({ pedidos: [pedido, ...state.pedidos] }));
-    } catch (e) {
-      set((state) => ({ pedidos: [pedido, ...state.pedidos] }));
-    }
-  },
-  
-  updatePedido: async (pedidoId, updates) => {
-    try {
-      await supabase.from(TABLES.PEDIDOS).update({ status: updates.status }).eq('id', pedidoId);
-    } catch (e) {}
-    set((state) => ({
-      pedidos: state.pedidos.map(p => p.id === pedidoId ? { ...p, ...updates } : p)
-    }));
-  },
-  
-  loadPedidos: async (clienteId?: string) => {
-    try {
-      let query = supabase.from(TABLES.PEDIDOS).select('*').order('created_at', { ascending: false });
-      if (clienteId) query = query.eq('cliente_id', clienteId);
-      const { data } = await query;
-      if (data) {
-        const pedidos: Pedido[] = data.map((p: any) => ({
-          id: p.id,
-          clienteId: p.cliente_id,
-          tiendaId: p.tienda_id,
-          productos: p.productos || [],
-          total: Number(p.total),
-          comision: Number(p.comision),
-          status: p.status,
-          direccionEntrega: p.direccion_entrega,
-          notas: p.notas,
-          createdAt: p.created_at,
-          subtotal: Number(p.subtotal),
-          monto_proveedor: Number(p.monto_proveedor)
+      addProducto: (producto) => set((state) => ({ productos: [...state.productos, producto] })),
+      updateProducto: (productoId, updates) => set((state) => ({
+        productos: state.productos.map(p => p.id === productoId ? { ...p, ...updates } : p)
+      })),
+      deleteProducto: (productoId) => set((state) => ({
+        productos: state.productos.filter(p => p.id !== productoId)
+      })),
+      addToCarrito: (producto, cantidad = 1) => set((state) => {
+        const existing = state.carrito.find(item => item.producto.id === producto.id);
+        if (existing) {
+          return {
+            carrito: state.carrito.map(item =>
+              item.producto.id === producto.id ? { ...item, cantidad: item.cantidad + cantidad } : item
+            )
+          };
+        }
+        return { carrito: [...state.carrito, { producto, cantidad }] };
+      }),
+      removeFromCarrito: (productoId) => set((state) => ({
+        carrito: state.carrito.filter(item => item.producto.id !== productoId)
+      })),
+      updateCarritoCantidad: (productoId, cantidad) => set((state) => ({
+        carrito: cantidad <= 0 
+          ? state.carrito.filter(item => item.producto.id !== productoId)
+          : state.carrito.map(item => item.producto.id === productoId ? { ...item, cantidad } : item)
+      })),
+      clearCarrito: () => set({ carrito: [] }),
+      
+      addPedido: async (pedido) => {
+        try {
+          await supabase.from(TABLES.PEDIDOS).insert({
+            cliente_id: pedido.clienteId,
+            tienda_id: pedido.tiendaId,
+            productos: pedido.productos.map(p => ({
+              producto_id: p.producto.id,
+              cantidad: p.cantidad,
+              precio: p.producto.precio,
+              nombre: p.producto.nombre,
+            })),
+            subtotal: pedido.subtotal,
+            comision: pedido.comision,
+            total: pedido.total,
+            status: pedido.status,
+            direccion_entrega: pedido.direccionEntrega,
+            metodo_pago: pedido.metodoPago,
+          });
+          set((state) => ({ pedidos: [pedido, ...state.pedidos] }));
+        } catch (e) {
+          set((state) => ({ pedidos: [pedido, ...state.pedidos] }));
+        }
+      },
+      
+      updatePedido: async (pedidoId, updates) => {
+        try {
+          await supabase.from(TABLES.PEDIDOS).update({ status: updates.status }).eq('id', pedidoId);
+        } catch (e) {}
+        set((state) => ({
+          pedidos: state.pedidos.map(p => p.id === pedidoId ? { ...p, ...updates } : p)
         }));
-        set({ pedidos });
-      }
-    } catch (e) {}
-  },
-  
-  toggleFavorito: (productoId) => set((state) => {
-    const isFavorite = state.favoritos.includes(productoId);
-    return {
-      favoritos: isFavorite ? state.favoritos.filter(id => id !== productoId) : [...state.favoritos, productoId]
-    };
-  }),
-}));
+      },
+      
+      loadPedidos: async (clienteId?: string) => {
+        try {
+          let query = supabase.from(TABLES.PEDIDOS).select('*').order('created_at', { ascending: false });
+          if (clienteId) query = query.eq('cliente_id', clienteId);
+          const { data } = await query;
+          if (data) {
+            const pedidos: Pedido[] = data.map((p: any) => ({
+              id: p.id,
+              clienteId: p.cliente_id,
+              tiendaId: p.tienda_id,
+              productos: p.productos || [],
+              total: Number(p.total),
+              comision: Number(p.comision),
+              status: p.status,
+              direccionEntrega: p.direccion_entrega,
+              notas: p.notas,
+              createdAt: p.created_at,
+              subtotal: Number(p.subtotal),
+              monto_proveedor: Number(p.monto_proveedor)
+            }));
+            set({ pedidos });
+          }
+        } catch (e) {}
+      },
+      
+      toggleFavorito: (productoId) => set((state) => {
+        const isFavorite = state.favoritos.includes(productoId);
+        return {
+          favoritos: isFavorite ? state.favoritos.filter(id => id !== productoId) : [...state.favoritos, productoId]
+        };
+      }),
+    }),
+    {
+      name: 'zocalotrade-storage-v2',
+      storage: createJSONStorage(() => {
+        try {
+          return typeof window !== 'undefined' ? window.localStorage : dummyStorage;
+        } catch (e) {
+          return dummyStorage;
+        }
+      }),
+      partialize: (state) => ({ 
+        user: state.user, 
+        rol: state.rol, 
+        darkMode: state.darkMode,
+        carrito: state.carrito,
+        favoritos: state.favoritos
+      }),
+    }
+  )
+);
+
+const dummyStorage = {
+  getItem: () => null,
+  setItem: () => null,
+  removeItem: () => null,
+};
