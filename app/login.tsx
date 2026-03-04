@@ -70,23 +70,6 @@ export default function LoginScreen() {
         if (data.user) {
           let userNombre = email.split('@')[0];
           
-          try {
-            const { data: perfil } = await supabase
-              .from('perfiles')
-              .select('nombre')
-              .eq('id', data.user.id)
-              .maybeSingle();
-
-            if (perfil?.nombre) {
-              userNombre = perfil.nombre;
-            } else {
-              await upsertProfile(data.user.id, email, userNombre);
-            }
-          } catch (profileError) {
-            console.log('Profile error (ignoring):', profileError);
-            userNombre = email.split('@')[0];
-          }
-
           setUser({
             id: data.user.id,
             nombre: userNombre,
@@ -111,8 +94,6 @@ export default function LoginScreen() {
         }
 
         if (data.user) {
-          await upsertProfile(data.user.id, email, nombre);
-
           setUser({
             id: data.user.id,
             nombre,
@@ -135,39 +116,42 @@ export default function LoginScreen() {
     try {
       setLoading(true);
       
-      // Use a simple redirect for web
-      const redirectUrl = 'https://zocalotrade.vercel.app';
-      
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: redirectUrl,
+          redirectTo: 'https://zocalotrade.vercel.app/',
+          skipBrowserRedirect: true,
         },
       });
       
       if (error) throw error;
       
-      // For web, the redirect happens automatically
-      // Just wait a bit and check session
-      setTimeout(async () => {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (session?.user) {
-          const user = session.user;
-          const userEmail = user.email || '';
-          const userNombre = user.user_metadata?.full_name || userEmail.split('@')[0];
-          
-          setUser({
-            id: user.id,
-            nombre: userNombre,
-            email: userEmail,
-          });
-          
-          router.replace('/(tabs)');
+      if (data?.url) {
+        const result = await WebBrowser.openAuthSessionAsync(
+          data.url,
+          'https://zocalotrade.vercel.app/'
+        );
+        
+        if (result.type === 'success') {
+          const { data: { session } } = await supabase.auth.getSession();
+          if (session?.user) {
+            const user = session.user;
+            const userEmail = user.email || '';
+            const userNombre = user.user_metadata?.full_name || userEmail.split('@')[0];
+            
+            setUser({
+              id: user.id,
+              nombre: userNombre,
+              email: userEmail,
+            });
+            
+            router.replace('/(tabs)');
+          }
         }
-      }, 2000);
-      
+      }
     } catch (error: any) {
       Alert.alert('Error', 'No se pudo iniciar sesión con Google: ' + error.message);
+    } finally {
       setLoading(false);
     }
   };
