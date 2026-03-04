@@ -50,6 +50,7 @@ interface AppState {
   carrito: any[];
   pedidos: any[];
   favoritos: string[];
+  notificaciones: any[];
   initialized: boolean;
   darkMode: boolean;
   colors: any;
@@ -68,6 +69,8 @@ interface AppState {
   updatePedidoStatus: (id: string, status: string) => Promise<void>;
   loadUserExtras: (userId: string) => Promise<void>;
   addResena: (resena: any) => Promise<void>;
+  loadNotificaciones: (userId: string) => Promise<void>;
+  markAsRead: (id: string) => Promise<void>;
 }
 
 const LIGHT_COLORS = {
@@ -96,6 +99,7 @@ export const useStore = create<AppState>((set) => ({
   carrito: [],
   pedidos: [],
   favoritos: [],
+  notificaciones: [],
   initialized: false,
   darkMode: false,
   colors: LIGHT_COLORS,
@@ -143,6 +147,9 @@ export const useStore = create<AppState>((set) => ({
 
       const { data: carts } = await supabase.from('perfiles').select('carrito').eq('id', userId).single();
       if (carts?.carrito) set({ carrito: carts.carrito });
+
+      const { data: notifs } = await supabase.from('notificaciones').select('*').eq('usuario_id', userId).order('created_at', { ascending: false });
+      if (notifs) set({ notificaciones: notifs });
     } catch (e) {}
   },
 
@@ -182,6 +189,22 @@ export const useStore = create<AppState>((set) => ({
   addResena: async (resena: any) => {
     try {
       await supabase.from('resenas').insert(resena);
+    } catch (e) {}
+  },
+
+  loadNotificaciones: async (userId: string) => {
+    try {
+      const { data } = await supabase.from('notificaciones').select('*').eq('usuario_id', userId).order('created_at', { ascending: false });
+      if (data) set({ notificaciones: data });
+    } catch (e) {}
+  },
+
+  markAsRead: async (id: string) => {
+    try {
+      await supabase.from('notificaciones').update({ leida: true }).eq('id', id);
+      set((s) => ({
+        notificaciones: s.notificaciones.map(n => n.id === id ? { ...n, leida: true } : n)
+      }));
     } catch (e) {}
   },
 }));
