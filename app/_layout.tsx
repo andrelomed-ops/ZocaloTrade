@@ -5,7 +5,7 @@ import { supabase } from '../src/services/supabase';
 import { useStore } from '../src/store/useStore';
 
 export default function RootLayout() {
-  const { setUser, setDarkMode, darkMode } = useStore();
+  const { setUser } = useStore();
 
   // Verificar sesión al cargar la app
   useEffect(() => {
