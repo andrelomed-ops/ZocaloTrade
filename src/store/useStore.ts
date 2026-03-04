@@ -10,7 +10,6 @@ export interface Producto {
   fotos: string[];
   tiendaId: string;
   disponible: boolean;
-  envio_incluido?: boolean;
   stock?: number;
 }
 
@@ -30,16 +29,22 @@ export interface User {
   id: string;
   nombre: string;
   email: string;
-  telefono?: string;
   fotoPerfil?: string;
 }
 
+export interface Pedido {
+  id: string;
+  status: string;
+  total: number;
+  createdAt: string;
+}
+
 export const MOCK_PRODUCTOS: Producto[] = [
-  { id: '1', nombre: 'Tamal de Mole', descripcion: 'Delicioso tamal casero', precio: 45, categoria: 'Comida', fotos: ['https://picsum.photos/400/400?random=1'], tiendaId: 't1', disponible: true },
+  { id: '1', nombre: 'Tamal de Mole', descripcion: 'Tradicional', precio: 45, categoria: 'Comida', fotos: ['https://picsum.photos/400/400'], tiendaId: 't1', disponible: true },
 ];
 
 export const MOCK_TIENDAS: Tienda[] = [
-  { id: 't1', nombre: 'Don Juan Tamales', descripcion: 'Los mejores tamales', direccion: 'Zócalo, CDMX', latitud: 19.4326, longitud: -99.1332, fotoPerfil: 'https://picsum.photos/100/100?random=10', rating: 4.8, categoria: 'Comida' },
+  { id: 't1', nombre: 'Don Juan Tamales', descripcion: 'Calidad', direccion: 'Centro', latitud: 0, longitud: 0, fotoPerfil: 'https://picsum.photos/100/100', rating: 4.8, categoria: 'Comida' },
 ];
 
 interface AppState {
@@ -47,6 +52,7 @@ interface AppState {
   productos: Producto[];
   tiendas: Tienda[];
   carrito: any[];
+  pedidos: Pedido[];
   favoritos: string[];
   initialized: boolean;
   darkMode: boolean;
@@ -56,6 +62,7 @@ interface AppState {
   setDarkMode: (darkMode: boolean) => void;
   toggleFavorito: (id: string) => void;
   addToCarrito: (p: any) => void;
+  clearCarrito: () => void;
 }
 
 export const useStore = create<AppState>((set) => ({
@@ -63,6 +70,7 @@ export const useStore = create<AppState>((set) => ({
   productos: [],
   tiendas: [],
   carrito: [],
+  pedidos: [],
   favoritos: [],
   initialized: false,
   darkMode: false,
@@ -86,10 +94,12 @@ export const useStore = create<AppState>((set) => ({
   },
 
   toggleFavorito: (id) => set((s) => ({
-    favoritos: s.favoritos.includes(id) ? s.favoritos.filter(x => x !== id) : [...s.favoritos, id]
+    favoritos: s.favoritos?.includes(id) ? s.favoritos.filter(x => x !== id) : [...(s.favoritos || []), id]
   })),
 
-  addToCarrito: (producto) => set((s) => ({
-    carrito: [...s.carrito, { producto, cantidad: 1 }]
+  addToCarrito: (p) => set((s) => ({
+    carrito: [...(s.carrito || []), { producto: p, cantidad: 1 }]
   })),
+
+  clearCarrito: () => set({ carrito: [] }),
 }));
