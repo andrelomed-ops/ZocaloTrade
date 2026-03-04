@@ -3,11 +3,13 @@ import { View, Text, StyleSheet, Animated } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useStore } from '../../src/store/useStore';
 import { useEffect, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 
 export default function TabsLayout() {
   const insets = useSafeAreaInsets();
   const state = useStore();
   const { colors } = state;
+  const { t } = useTranslation();
   
   const carrito = state.carrito || [];
   const favoritos = state.favoritos || [];
@@ -38,21 +40,21 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="index"
         options={{
-          title: 'Inicio',
+          title: t('inicio'),
           tabBarIcon: ({ color }) => <TabIcon name="🏠" color={color} />,
         }}
       />
       <Tabs.Screen
         name="explorar"
         options={{
-          title: 'Explorar',
+          title: t('explorar'),
           tabBarIcon: ({ color }) => <TabIcon name="🔍" color={color} />,
         }}
       />
       <Tabs.Screen
         name="carrito"
         options={{
-          title: 'Carrito',
+          title: t('carrito'),
           tabBarIcon: ({ color }) => <TabIcon name="🛒" color={color} count={cartCount} />,
           tabBarBadge: cartCount > 0 ? cartCount : undefined,
         }}
@@ -60,7 +62,7 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="pedidos"
         options={{
-          title: 'Pedidos',
+          title: t('pedidos'),
           tabBarIcon: ({ color }) => <TabIcon name="📦" color={color} count={pedidosCount} />,
           tabBarBadge: pedidosCount > 0 ? pedidosCount : undefined,
         }}
@@ -68,7 +70,7 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="favoritos"
         options={{
-          title: 'Favoritos',
+          title: t('favoritos'),
           tabBarIcon: ({ color }) => <TabIcon name="❤️" color={color} count={favoritosCount} />,
           tabBarBadge: favoritosCount > 0 ? favoritosCount : undefined,
         }}
@@ -76,7 +78,7 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="perfil"
         options={{
-          title: 'Perfil',
+          title: t('perfil'),
           tabBarIcon: ({ color }) => <TabIcon name="👤" color={color} />,
         }}
       />

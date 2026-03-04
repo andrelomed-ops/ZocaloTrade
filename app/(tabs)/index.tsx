@@ -5,8 +5,10 @@ import { useStore } from '../../src/store/useStore';
 import { useState, useCallback, useEffect, useRef } from 'react';
 import * as Location from 'expo-location';
 import { Skeleton } from '../../src/components/Skeleton';
+import { useTranslation } from 'react-i18next';
 
 export default function HomeScreen() {
+  const { t, i18n } = useTranslation();
   const { addToCarrito, favoritos, toggleFavorito, productos, tiendas, colors, initialize, setUserLocation, userLocation, initialized } = useStore();
   const [categoriaSeleccionada, setCategoriaSeleccionada] = useState('Todos');
   const [refreshing, setRefreshing] = useState(false);
@@ -89,11 +91,21 @@ export default function HomeScreen() {
       }
     >
       <Animated.View style={[styles.header, { backgroundColor: colors.primary, opacity: headerOpacity }]}>
-        <Text style={styles.title}>ZocaloTrade</Text>
-        <Text style={styles.subtitle}>Tu marketplace del Zócalo</Text>
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+          <View>
+            <Text style={styles.title}>ZocaloTrade</Text>
+            <Text style={styles.subtitle}>{t('tu_marketplace')}</Text>
+          </View>
+          <TouchableOpacity 
+            style={{ backgroundColor: 'rgba(255,255,255,0.2)', padding: 8, borderRadius: 20 }}
+            onPress={() => i18n.changeLanguage(i18n.language === 'es' ? 'en' : 'es')}
+          >
+            <Text style={{ color: '#fff', fontWeight: 'bold' }}>{i18n.language === 'es' ? '🇺🇸 EN' : '🇲🇽 ES'}</Text>
+          </TouchableOpacity>
+        </View>
       </Animated.View>
 
-      <Text style={[styles.sectionTitle, { color: colors.text }]}>Categorías</Text>
+      <Text style={[styles.sectionTitle, { color: colors.text }]}>{t('categorias')}</Text>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.categoriasScroll}>
         {CATEGORIAS.map((cat) => (
           <TouchableOpacity 

@@ -3,7 +3,9 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { useEffect, useState } from 'react';
 import { supabase } from '../src/services/supabase';
 import { useStore } from '../src/store/useStore';
-import { View, ActivityIndicator } from 'react-native';
+import { View, ActivityIndicator, TouchableOpacity, Text } from 'react-native';
+import '../src/services/i18n';
+import { useTranslation } from 'react-i18next';
 
 export default function RootLayout() {
   const { setUser, initialize, colors, loadUserExtras, loadPedidos } = useStore();
