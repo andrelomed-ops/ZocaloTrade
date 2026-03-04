@@ -7,9 +7,9 @@ import { useStore } from '../src/store/useStore';
 export default function RootLayout() {
   const { setUser } = useStore();
 
-  // Verificar sesión al cargar la app y cuando cambie el estado
+  // Verificar sesión al cargar la app
   useEffect(() => {
-    const updateSession = (session: any) => {
+    const handleAuth = async (session: any) => {
       if (session?.user) {
         const email = session.user.email || '';
         const nombre = session.user.user_metadata?.full_name || session.user.user_metadata?.name || email.split('@')[0] || 'Usuario';
@@ -19,19 +19,21 @@ export default function RootLayout() {
           nombre: nombre,
           email: email,
         });
-      } else {
-        setUser(null);
       }
     };
 
-    // 1. Verificar sesión actual
+    // 1. Carga inicial
     supabase.auth.getSession().then(({ data: { session } }) => {
-      updateSession(session);
+      if (session) handleAuth(session);
     });
 
-    // 2. Escuchar cambios (para Google Login redirect)
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      updateSession(session);
+    // 2. Escuchar cambios (Login/Logout)
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED' || session) {
+        handleAuth(session);
+      } else if (event === 'SIGNED_OUT') {
+        setUser(null);
+      }
     });
     
     return () => subscription.unsubscribe();
