@@ -31,21 +31,31 @@ export default function LoginScreen() {
     try {
       const { data: { session } } = await supabase.auth.getSession();
       if (session?.user) {
-        const { data: perfil } = await supabase
-          .from('perfiles')
-          .select('*')
-          .eq('id', session.user.id)
-          .single();
-
+        const email = session.user.email || '';
+        const nombre = email.split('@')[0];
+        
         setUser({
           id: session.user.id,
-          nombre: perfil?.nombre || session.user.email?.split('@')[0] || 'Usuario',
-          email: session.user.email,
+          nombre: nombre,
+          email: email,
         });
         router.replace('/(tabs)');
       }
     } catch (e) {
       console.log('Session check error:', e);
+    }
+  }
+
+  async function upsertProfile(userId: string, userEmail: string, userNombre: string, avatarUrl?: string) {
+    try {
+      await supabase.from('perfiles').upsert({
+        id: userId,
+        nombre: userNombre,
+        email: userEmail,
+        avatar_url: avatarUrl,
+      }, { onConflict: 'id' });
+    } catch (e) {
+      console.log('Profile upsert error (ignoring):', e);
     }
   }
 
@@ -79,20 +89,33 @@ export default function LoginScreen() {
           throw error;
         }
 
-        const { data: perfil } = await supabase
-          .from('perfiles')
-          .select('*')
-          .eq('id', data.user.id)
-          .single();
+        if (data.user) {
+          let userNombre = email.split('@')[0];
+          
+          try {
+            const { data: perfil } = await supabase
+              .from('perfiles')
+              .select('nombre')
+              .eq('id', data.user.id)
+              .maybeSingle();
 
-        const userData = {
-          id: data.user.id,
-          nombre: perfil?.nombre || email.split('@')[0],
-          email: data.user.email,
-        };
-        
-        setUser(userData);
-        Alert.alert('¡Bienvenido!', 'Has iniciado sesión correctamente');
+            if (perfil?.nombre) {
+              userNombre = perfil.nombre;
+            } else {
+              await upsertProfile(data.user.id, email, userNombre);
+            }
+          } catch (profileError) {
+            console.log('Profile error (ignoring):', profileError);
+            userNombre = email.split('@')[0];
+          }
+
+          setUser({
+            id: data.user.id,
+            nombre: userNombre,
+            email: data.user.email,
+          });
+          Alert.alert('¡Bienvenido!', 'Has iniciado sesión correctamente');
+        }
       } else {
         const { data, error } = await supabase.auth.signUp({
           email,
@@ -110,11 +133,7 @@ export default function LoginScreen() {
         }
 
         if (data.user) {
-          await supabase.from('perfiles').insert({
-            id: data.user.id,
-            nombre,
-            email,
-          });
+          await upsertProfile(data.user.id, email, nombre);
 
           setUser({
             id: data.user.id,
@@ -159,9 +178,9 @@ export default function LoginScreen() {
         if (result.type === 'success') {
           const url = result.url;
           const urlObj = new URL(url);
-          const params = new URLSearchParams(urlObj.hash.substring(1));
-          const accessToken = params.get('access_token');
-          const refreshToken = params.get('refresh_token');
+          const hashParams = new URLSearchParams(urlObj.hash.substring(1));
+          const accessToken = hashParams.get('access_token');
+          const refreshToken = hashParams.get('refresh_token');
           
           if (accessToken && refreshToken) {
             const { data: sessionData, error: sessionError } = await supabase.auth.setSession({
@@ -175,16 +194,17 @@ export default function LoginScreen() {
             }
 
             if (sessionData?.session?.user) {
-              const { data: perfil } = await supabase
-                .from('perfiles')
-                .select('*')
-                .eq('id', sessionData.user.id)
-                .single();
+              const user = sessionData.user;
+              const userEmail = user.email || '';
+              const userNombre = user.user_metadata?.name || userEmail.split('@')[0];
+              const avatarUrl = user.user_metadata?.avatar_url;
+
+              await upsertProfile(user.id, userEmail, userNombre, avatarUrl);
 
               setUser({
-                id: sessionData.user.id,
-                nombre: perfil?.nombre || sessionData.user.email?.split('@')[0] || 'Usuario',
-                email: sessionData.user.email,
+                id: user.id,
+                nombre: userNombre,
+                email: userEmail,
               });
               
               router.replace('/(tabs)');
@@ -222,7 +242,22 @@ export default function LoginScreen() {
         );
         
         if (result.type === 'success') {
-          router.replace('/(tabs)');
+          const { data: { session } } = await supabase.auth.getSession();
+          if (session?.user) {
+            const user = session.user;
+            const userEmail = user.email || '';
+            const userNombre = user.user_metadata?.name || userEmail.split('@')[0];
+
+            await upsertProfile(user.id, userEmail, userNombre);
+
+            setUser({
+              id: user.id,
+              nombre: userNombre,
+              email: userEmail,
+            });
+            
+            router.replace('/(tabs)');
+          }
         }
       }
     } catch (error: any) {
