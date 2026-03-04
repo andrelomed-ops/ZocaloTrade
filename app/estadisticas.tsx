@@ -2,9 +2,10 @@ import { View, Text, ScrollView, TouchableOpacity, StyleSheet, ActivityIndicator
 import { useState, useEffect, useCallback } from 'react';
 import { useStore } from '../src/store/useStore';
 import { router } from 'expo-router';
+import { Skeleton } from '../src/components/Skeleton';
 
 export default function EstadisticasVendedorScreen() {
-  const { pedidos, user, colors, initialize, loadPedidos } = useStore();
+  const { pedidos, user, colors, initialize, loadPedidos, initialized } = useStore();
   const [periodo, setPeriodo] = useState('semana');
   const [refreshing, setRefreshing] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -24,34 +25,20 @@ export default function EstadisticasVendedorScreen() {
     }
   }, [user]);
 
-  // Filtrar ventas por estado 'entregado' como ventas reales
   const ventas = (pedidos || []).filter(p => p.status === 'entregado');
   const totalIngresos = ventas.reduce((sum, v) => sum + (v.total || 0), 0);
   const comisionTotal = totalIngresos * 0.1;
   const gananciaNeta = totalIngresos - comisionTotal;
   const totalPedidos = (pedidos || []).length;
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'entregado': return '#27ae60';
-      case 'pendiente': return '#f39c12';
-      case 'cancelado': return '#e74c3c';
-      default: return '#3498db';
-    }
-  };
-
-  if (loading) {
+  if (loading || !initialized) {
     return (
-      <View style={[styles.container, { backgroundColor: colors.background, justifyContent: 'center' }]}>
-        <ActivityIndicator color={colors.primary} size="large" />
-      </View>
-    );
-  }
-
-  if (!user) {
-    return (
-      <View style={[styles.container, { backgroundColor: colors.background, justifyContent: 'center', alignItems: 'center' }]}>
-        <Text style={{ color: colors.text }}>Inicia sesión para ver estadísticas</Text>
+      <View style={[styles.container, { backgroundColor: colors.background, padding: 20 }]}>
+        <Skeleton width="100%" height={100} style={{ marginTop: 40 }} />
+        <View style={styles.statsGrid}>
+          {[1, 2, 3, 4].map(i => <Skeleton key={i} width="48%" height={120} style={{ margin: '1%' }} />)}
+        </View>
+        <Skeleton width="100%" height={200} style={{ marginTop: 20 }} />
       </View>
     );
   }
@@ -59,64 +46,65 @@ export default function EstadisticasVendedorScreen() {
   return (
     <ScrollView 
       style={[styles.container, { backgroundColor: colors.background }]}
-      refreshControl={
-        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[colors.primary]} />
-      }
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[colors.primary]} />}
     >
       <View style={[styles.header, { backgroundColor: colors.primary }]}>
         <Text style={styles.headerTitle}>Resumen de Negocio</Text>
-        <Text style={{ color: '#fff', opacity: 0.8 }}>Datos reales de tus ventas en el Zócalo</Text>
+        <Text style={{ color: '#fff', opacity: 0.8 }}>Tu actividad comercial en tiempo real</Text>
       </View>
 
       <View style={styles.statsGrid}>
         <View style={[styles.statCard, { backgroundColor: colors.card }]}>
           <Text style={styles.statIcon}>💰</Text>
           <Text style={[styles.statValue, { color: colors.primary }]}>${totalIngresos.toFixed(0)}</Text>
-          <Text style={[styles.statLabel, { color: colors.subtext }]}>Ventas Totales</Text>
+          <Text style={[styles.statLabel, { color: colors.subtext }]}>Ventas Brutas</Text>
         </View>
         <View style={[styles.statCard, { backgroundColor: colors.card }]}>
           <Text style={styles.statIcon}>📈</Text>
           <Text style={[styles.statValue, { color: '#27ae60' }]}>${gananciaNeta.toFixed(0)}</Text>
-          <Text style={[styles.statLabel, { color: colors.subtext }]}>Ganancia Neta</Text>
+          <Text style={[styles.statLabel, { color: colors.subtext }]}>Mi Ganancia</Text>
         </View>
         <View style={[styles.statCard, { backgroundColor: colors.card }]}>
           <Text style={styles.statIcon}>📦</Text>
           <Text style={[styles.statValue, { color: colors.text }]}>{totalPedidos}</Text>
-          <Text style={[styles.statLabel, { color: colors.subtext }]}>Pedidos Totales</Text>
+          <Text style={[styles.statLabel, { color: colors.subtext }]}>Pedidos</Text>
         </View>
         <View style={[styles.statCard, { backgroundColor: colors.card }]}>
-          <Text style={styles.statIcon}>🛡️</Text>
-          <Text style={[styles.statValue, { color: colors.subtext }]}>10%</Text>
-          <Text style={[styles.statLabel, { color: colors.subtext }]}>Comisión App</Text>
+          <Text style={styles.statIcon}>⭐</Text>
+          <Text style={[styles.statValue, { color: '#f1c40f' }]}>5.0</Text>
+          <Text style={[styles.statLabel, { color: colors.subtext }]}>Rating</Text>
         </View>
       </View>
 
       <View style={[styles.section, { backgroundColor: colors.card }]}>
-        <Text style={[styles.sectionTitle, { color: colors.text }]}>📋 Historial de Movimientos</Text>
+        <Text style={[styles.sectionTitle, { color: colors.text }]}>📋 Últimos Movimientos</Text>
         {(pedidos || []).slice(0, 10).map((pedido) => (
           <View key={pedido.id} style={[styles.ventaItem, { borderBottomColor: colors.border }]}>
             <View style={{ flex: 1 }}>
               <Text style={[styles.ventaProducto, { color: colors.text }]}>Pedido #{pedido.id.slice(0, 8)}</Text>
               <Text style={[styles.ventaDetalles, { color: colors.subtext }]}>
-                {new Date(pedido.created_at).toLocaleDateString()}
+                {new Date(pedido.created_at || pedido.createdAt).toLocaleDateString()}
               </Text>
             </View>
             <View style={{ alignItems: 'flex-end' }}>
               <Text style={[styles.ventaMonto, { color: colors.primary }]}>${pedido.total}</Text>
-              <View style={[styles.statusBadge, { backgroundColor: getStatusColor(pedido.status) }]}>
+              <View style={[styles.statusBadge, { backgroundColor: pedido.status === 'entregado' ? '#27ae60' : '#f39c12' }]}>
                 <Text style={styles.statusText}>{pedido.status}</Text>
               </View>
             </View>
           </View>
         ))}
         {(pedidos || []).length === 0 && (
-          <Text style={{ color: colors.subtext, textAlign: 'center', padding: 20 }}>No hay ventas registradas aún.</Text>
+          <Text style={{ color: colors.subtext, textAlign: 'center', padding: 20 }}>Sin movimientos registrados.</Text>
         )}
       </View>
 
-      <View style={{ padding: 20, alignItems: 'center' }}>
-        <Text style={{ color: colors.subtext, fontSize: 12 }}>Actualizado en tiempo real</Text>
-      </View>
+      <TouchableOpacity 
+        style={[styles.btn, { backgroundColor: colors.primary }]}
+        onPress={() => router.push('/mis-productos')}
+      >
+        <Text style={{ color: '#fff', fontWeight: 'bold' }}>Gestionar Productos</Text>
+      </TouchableOpacity>
     </ScrollView>
   );
 }
@@ -138,4 +126,5 @@ const styles = StyleSheet.create({
   ventaMonto: { fontSize: 16, fontWeight: 'bold' },
   statusBadge: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 10, marginTop: 4 },
   statusText: { color: '#fff', fontSize: 9, fontWeight: 'bold', textTransform: 'uppercase' },
+  btn: { margin: 15, padding: 15, borderRadius: 10, alignItems: 'center', marginBottom: 40 },
 });

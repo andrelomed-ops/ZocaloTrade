@@ -1,11 +1,13 @@
 import { Tabs } from 'expo-router';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet, Animated } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useStore } from '../../src/store/useStore';
+import { useEffect, useRef } from 'react';
 
 export default function TabsLayout() {
   const insets = useSafeAreaInsets();
   const state = useStore();
+  const { colors } = state;
   
   const carrito = state.carrito || [];
   const favoritos = state.favoritos || [];
@@ -14,20 +16,20 @@ export default function TabsLayout() {
   const cartCount = carrito.reduce((sum, item) => sum + (item.cantidad || 0), 0);
   const favoritosCount = favoritos.length;
   const pedidosCount = pedidos.filter(p => p && p.status !== 'entregado' && p.status !== 'cancelado').length;
-  
+
   return (
     <Tabs
       screenOptions={{
-        tabBarActiveTintColor: '#FF6B35',
-        tabBarInactiveTintColor: '#666',
+        tabBarActiveTintColor: colors.primary,
+        tabBarInactiveTintColor: colors.subtext,
         tabBarStyle: { 
-          backgroundColor: '#ffffff', 
+          backgroundColor: colors.card, 
           borderTopWidth: 1, 
+          borderTopColor: colors.border,
           paddingBottom: insets.bottom > 0 ? insets.bottom : 5, 
           height: 60 + (insets.bottom > 0 ? insets.bottom : 0),
-          marginBottom: insets.bottom,
         },
-        headerStyle: { backgroundColor: '#FF6B35', paddingTop: insets.top },
+        headerStyle: { backgroundColor: colors.primary },
         headerTintColor: '#ffffff',
         headerTitleStyle: { fontWeight: 'bold' },
         tabBarHideOnKeyboard: true,
@@ -51,7 +53,7 @@ export default function TabsLayout() {
         name="carrito"
         options={{
           title: 'Carrito',
-          tabBarIcon: ({ color }) => <TabIcon name="🛒" color={color} />,
+          tabBarIcon: ({ color }) => <TabIcon name="🛒" color={color} count={cartCount} />,
           tabBarBadge: cartCount > 0 ? cartCount : undefined,
         }}
       />
@@ -59,7 +61,7 @@ export default function TabsLayout() {
         name="pedidos"
         options={{
           title: 'Pedidos',
-          tabBarIcon: ({ color }) => <TabIcon name="📦" color={color} />,
+          tabBarIcon: ({ color }) => <TabIcon name="📦" color={color} count={pedidosCount} />,
           tabBarBadge: pedidosCount > 0 ? pedidosCount : undefined,
         }}
       />
@@ -67,7 +69,7 @@ export default function TabsLayout() {
         name="favoritos"
         options={{
           title: 'Favoritos',
-          tabBarIcon: ({ color }) => <TabIcon name="❤️" color={color} />,
+          tabBarIcon: ({ color }) => <TabIcon name="❤️" color={color} count={favoritosCount} />,
           tabBarBadge: favoritosCount > 0 ? favoritosCount : undefined,
         }}
       />
@@ -82,11 +84,22 @@ export default function TabsLayout() {
   );
 }
 
-function TabIcon({ name, color }: { name: string; color: string }) {
+function TabIcon({ name, color, count = 0 }: { name: string; color: string; count?: number }) {
+  const scale = useRef(new Animated.Value(1)).current;
+
+  useEffect(() => {
+    if (count > 0) {
+      Animated.sequence([
+        Animated.timing(scale, { toValue: 1.2, duration: 150, useNativeDriver: true }),
+        Animated.spring(scale, { toValue: 1, friction: 4, useNativeDriver: true }),
+      ]).start();
+    }
+  }, [count]);
+
   return (
-    <View style={styles.iconContainer}>
-      <Text style={[styles.icon, { color: color === '#FF6B35' ? '#FF6B35' : '#666' }]}>{name}</Text>
-    </View>
+    <Animated.View style={[styles.iconContainer, { transform: [{ scale }] }]}>
+      <Text style={[styles.icon, { color }]}>{name}</Text>
+    </Animated.View>
   );
 }
 

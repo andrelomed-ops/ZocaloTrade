@@ -22,7 +22,6 @@ export default function RootLayout() {
             nombre: nombre,
             email: email,
           });
-          // Cargar datos extra del usuario
           await loadUserExtras(session.user.id);
           await loadPedidos(session.user.id);
         }
@@ -79,6 +78,19 @@ export default function RootLayout() {
         <Stack.Screen name="chat-soporte" options={{ title: 'Soporte' }} />
         <Stack.Screen name="editar-perfil" options={{ title: 'Editar Perfil' }} />
         <Stack.Screen name="checkout" options={{ title: 'Checkout' }} />
+        <Stack.Screen name="seguimiento" options={{ title: 'Seguimiento' }} />
+        <Stack.Screen name="admin/index" options={{ title: 'Panel Maestro' }} />
+        <Stack.Screen name="mis-productos" options={{ title: 'Mi Inventario' }} />
+        <Stack.Screen name="pedidos-vendedor" options={{ title: 'Pedidos Recibidos' }} />
+        <Stack.Screen name="estadisticas" options={{ title: 'Estadísticas' }} />
+        <Stack.Screen name="notificaciones" options={{ title: 'Notificaciones' }} />
+        <Stack.Screen name="promociones" options={{ title: 'Promociones' }} />
+        <Stack.Screen name="ayuda" options={{ title: 'Ayuda' }} />
+        <Stack.Screen name="resenas" options={{ title: 'Mis Reseñas' }} />
+        <Stack.Screen name="direcciones" options={{ title: 'Direcciones' }} />
+        <Stack.Screen name="metodos-pago" options={{ title: 'Pagos' }} />
+        <Stack.Screen name="tienda/[id]" options={{ title: 'Tienda' }} />
+        <Stack.Screen name="producto/[id]" options={{ title: 'Producto' }} />
       </Stack>
     </SafeAreaProvider>
   );

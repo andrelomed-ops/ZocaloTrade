@@ -1,174 +1,144 @@
-import { View, Text, Image, ScrollView, TouchableOpacity, StyleSheet, Alert, Dimensions } from 'react-native';
-import { useStore, MOCK_PRODUCTOS, MOCK_TIENDAS } from '../../src/store/useStore';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, Alert, Platform, ActivityIndicator } from 'react-native';
 import { useLocalSearchParams, router } from 'expo-router';
+import { useStore } from '../../src/store/useStore';
 import { useState } from 'react';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Skeleton } from '../../src/components/Skeleton';
 
-const { width } = Dimensions.get('window');
-
-export default function ProductoDetalleScreen() {
-  const { id } = useLocalSearchParams();
-  const { addToCarrito, productos, tiendas } = useStore();
+export default function ProductoScreen() {
+  const { id } = useLocalSearchParams<{ id: string }>();
+  const { addToCarrito, productos, tiendas, favoritos, toggleFavorito, colors } = useStore();
   const [cantidad, setCantidad] = useState(1);
-  const insets = useSafeAreaInsets();
+  const [imagenActual, setImagenActual] = useState(0);
+  const [imgLoading, setImgLoading] = useState(true);
 
-  const producto = (productos.length > 0 ? productos : MOCK_PRODUCTOS).find(p => p.id === id);
-  const tienda = (tiendas.length > 0 ? tiendas : MOCK_TIENDAS).find(t => t.id === producto?.tiendaId);
+  const producto = (productos || []).find(p => p.id === id);
+  const tienda = (tiendas || []).find(t => t.id === producto?.tiendaId);
+  const isFavorite = (favoritos || []).includes(id || '');
 
   if (!producto) {
     return (
-      <View style={styles.notFound}>
-        <Text style={styles.notFoundText}>Producto no encontrado</Text>
+      <View style={[styles.container, { backgroundColor: colors.background, justifyContent: 'center', alignItems: 'center' }]}>
+        <ActivityIndicator color={colors.primary} size="large" />
       </View>
     );
   }
 
   const handleAgregarCarrito = () => {
-    for (let i = 0; i < cantidad; i++) {
-      addToCarrito(producto);
-    }
-    Alert.alert('Agregado', `${producto.nombre} x${cantidad} añadido al carrito`);
-  };
-
-  const restarCantidad = () => {
-    if (cantidad > 1) setCantidad(cantidad - 1);
-  };
-
-  const sumarCantidad = () => {
-    setCantidad(cantidad + 1);
+    addToCarrito(producto, cantidad);
+    const msg = `¡${cantidad} x ${producto.nombre} agregado al carrito! 🛒`;
+    if (Platform.OS === 'web') alert(msg);
+    else Alert.alert('Éxito', msg);
   };
 
   return (
-    <View style={styles.container}>
-      <ScrollView showsVerticalScrollIndicator={false}>
-        <ScrollView horizontal pagingEnabled showsHorizontalScrollIndicator={false} style={styles.imageContainer}>
-          {(producto.fotos || [producto.foto]).map((foto, index) => (
-            <Image 
-              key={index} 
-              source={{ uri: foto }} 
-              style={styles.productImage}
-              resizeMode="cover"
+    <ScrollView style={[styles.container, { backgroundColor: colors.background }]}>
+      <View style={styles.imageContainer}>
+        {imgLoading && <Skeleton width="100%" height={350} style={{ position: 'absolute', zIndex: 1 }} />}
+        <Image 
+          source={{ uri: producto.fotos?.[imagenActual] || 'https://picsum.photos/400/400' }} 
+          style={styles.imagen} 
+          onLoad={() => setImgLoading(false)}
+        />
+        <View style={styles.imageDots}>
+          {(producto.fotos || [1]).map((_, index) => (
+            <TouchableOpacity
+              key={index}
+              style={[styles.dot, imagenActual === index && { backgroundColor: colors.primary, width: 20 }]}
+              onPress={() => setImagenActual(index)}
             />
           ))}
-        </ScrollView>
-
-        <View style={styles.content}>
-          <View style={styles.categoryBadge}>
-            <Text style={styles.categoryText}>{producto.categoria}</Text>
-          </View>
-
-          <Text style={styles.productName}>{producto.nombre}</Text>
-          
-          <View style={styles.priceRow}>
-            <Text style={styles.price}>${producto.precio}</Text>
-            {producto.disponible ? (
-              <View style={styles.disponibleBadge}>
-                <Text style={styles.disponibleText}>✓ Disponible</Text>
-              </View>
-            ) : (
-              <View style={styles.noDisponibleBadge}>
-                <Text style={styles.noDisponibleText}>Agotado</Text>
-              </View>
-            )}
-          </View>
-
-          <View style={styles.tiendaInfo}>
-            <Image 
-              source={{ uri: tienda?.fotoPerfil }} 
-              style={styles.tiendaImage}
-            />
-            <View>
-              <Text style={styles.tiendaLabel}>Vendido por</Text>
-              <Text style={styles.tiendaName}>{tienda?.nombre}</Text>
-            </View>
-          </View>
-
-          <View style={styles.divider} />
-
-          <Text style={styles.sectionTitle}>Descripción</Text>
-          <Text style={styles.description}>{producto.descripcion}</Text>
-
-          <View style={styles.divider} />
-
-          <Text style={styles.sectionTitle}>Información del vendedor</Text>
-          <View style={styles.vendedorCard}>
-            <Text style={styles.vendedorName}>{tienda?.nombre}</Text>
-            <Text style={styles.vendedorDesc}>{tienda?.descripcion}</Text>
-            <Text style={styles.vendedorDireccion}>📍 {tienda?.direccion}</Text>
-            <View style={styles.ratingRow}>
-              <Text style={styles.rating}>⭐ {tienda?.rating}</Text>
-              <Text style={styles.ratingText}>rating del vendedor</Text>
-            </View>
-          </View>
         </View>
-      </ScrollView>
-
-      <View style={styles.bottomBar}>
-        <View style={styles.cantidadRow}>
-          <Text style={styles.cantidadLabel}>Cantidad:</Text>
-          <View style={styles.cantidadControls}>
-            <TouchableOpacity style={styles.cantidadBtn} onPress={restarCantidad}>
-              <Text style={styles.cantidadBtnText}>-</Text>
-            </TouchableOpacity>
-            <Text style={styles.cantidadValue}>{cantidad}</Text>
-            <TouchableOpacity style={styles.cantidadBtn} onPress={sumarCantidad}>
-              <Text style={styles.cantidadBtnText}>+</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-
         <TouchableOpacity 
-          style={[styles.agregarBtn, !producto.disponible && styles.agregarBtnDisabled]}
-          onPress={handleAgregarCarrito}
-          disabled={!producto.disponible}
+          style={[styles.backFloat, { backgroundColor: colors.card }]} 
+          onPress={() => router.back()}
         >
-          <Text style={styles.agregarBtnText}>
-            Agregar al Carrito - ${(producto.precio * cantidad).toFixed(2)}
-          </Text>
+          <Text style={{ color: colors.text }}>←</Text>
         </TouchableOpacity>
       </View>
-    </View>
+
+      <View style={styles.content}>
+        <View style={styles.header}>
+          <View style={{ flex: 1 }}>
+            <Text style={[styles.nombre, { color: colors.text }]}>{producto.nombre}</Text>
+            <Text style={[styles.categoria, { color: colors.primary }]}>{producto.categoria}</Text>
+          </View>
+          <TouchableOpacity 
+            style={[styles.favCircle, { backgroundColor: colors.card }]}
+            onPress={() => toggleFavorito(producto.id)}
+          >
+            <Text style={styles.favorito}>{isFavorite ? '❤️' : '🤍'}</Text>
+          </TouchableOpacity>
+        </View>
+
+        <Text style={[styles.precio, { color: colors.primary }]}>${producto.precio}</Text>
+
+        <TouchableOpacity 
+          style={[styles.tiendaCard, { backgroundColor: colors.card }]} 
+          onPress={() => router.push(`/tienda/${tienda?.id}`)}
+        >
+          <Image source={{ uri: tienda?.fotoPerfil || 'https://picsum.photos/100/100' }} style={styles.tiendaThumb} />
+          <View style={styles.tiendaInfo}>
+            <Text style={[styles.tiendaLabel, { color: colors.subtext }]}>Vendedor Verificado</Text>
+            <Text style={[styles.tiendaNombre, { color: colors.text }]}>{tienda?.nombre || 'Tienda Zócalo'}</Text>
+          </View>
+          <View style={styles.ratingBadge}>
+            <Text style={{ color: '#fff', fontWeight: 'bold', fontSize: 12 }}>⭐ {tienda?.rating || '5.0'}</Text>
+          </View>
+        </TouchableOpacity>
+
+        <View style={styles.section}>
+          <Text style={[styles.sectionTitle, { color: colors.text }]}>Descripción del producto</Text>
+          <Text style={[styles.descripcion, { color: colors.subtext }]}>{producto.descripcion}</Text>
+        </View>
+
+        <View style={styles.footerActions}>
+          <View style={[styles.cantidadContainer, { backgroundColor: colors.card }]}>
+            <TouchableOpacity style={styles.qtyBtn} onPress={() => setCantidad(Math.max(1, cantidad - 1))}>
+              <Text style={[styles.qtyBtnText, { color: colors.text }]}>-</Text>
+            </TouchableOpacity>
+            <Text style={[styles.cantidadText, { color: colors.text }]}>{cantidad}</Text>
+            <TouchableOpacity style={styles.qtyBtn} onPress={() => setCantidad(cantidad + 1)}>
+              <Text style={[styles.qtyBtnText, { color: colors.text }]}>+</Text>
+            </TouchableOpacity>
+          </View>
+
+          <TouchableOpacity style={[styles.agregarButton, { backgroundColor: colors.primary }]} onPress={handleAgregarCarrito}>
+            <Text style={styles.agregarButtonText}>Añadir al Carrito</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f5f5f5' },
-  notFound: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  notFoundText: { fontSize: 18, color: '#666' },
-  imageContainer: { height: 350 },
-  productImage: { width, height: 350 },
-  content: { padding: 20, backgroundColor: '#fff', marginTop: -20, borderTopLeftRadius: 25, borderTopRightRadius: 25 },
-  categoryBadge: { alignSelf: 'flex-start', backgroundColor: '#f0f0f0', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 15, marginBottom: 10 },
-  categoryText: { color: '#666', fontSize: 12, fontWeight: '600' },
-  productName: { fontSize: 26, fontWeight: 'bold', marginBottom: 10 },
-  priceRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 15 },
-  price: { fontSize: 28, fontWeight: 'bold', color: '#FF6B35' },
-  disponibleBadge: { backgroundColor: '#d4edda', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 15 },
-  disponibleText: { color: '#155724', fontSize: 12, fontWeight: '600' },
-  noDisponibleBadge: { backgroundColor: '#f8d7da', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 15 },
-  noDisponibleText: { color: '#721c24', fontSize: 12, fontWeight: '600' },
-  tiendaInfo: { flexDirection: 'row', alignItems: 'center', marginBottom: 15 },
-  tiendaImage: { width: 50, height: 50, borderRadius: 25, marginRight: 12 },
-  tiendaLabel: { fontSize: 12, color: '#666' },
-  tiendaName: { fontSize: 16, fontWeight: 'bold' },
-  divider: { height: 1, backgroundColor: '#eee', marginVertical: 20 },
-  sectionTitle: { fontSize: 18, fontWeight: 'bold', marginBottom: 10 },
-  description: { fontSize: 15, color: '#444', lineHeight: 22 },
-  vendedorCard: { backgroundColor: '#f8f9fa', padding: 15, borderRadius: 12 },
-  vendedorName: { fontSize: 16, fontWeight: 'bold', marginBottom: 5 },
-  vendedorDesc: { color: '#666', marginBottom: 8 },
-  vendedorDireccion: { color: '#666', marginBottom: 8 },
-  ratingRow: { flexDirection: 'row', alignItems: 'center' },
-  rating: { fontSize: 16, fontWeight: 'bold', marginRight: 5 },
-  ratingText: { color: '#999', fontSize: 12 },
-  bottomBar: { backgroundColor: '#fff', padding: 20, paddingBottom: Math.max(20, insets.bottom + 10), borderTopWidth: 1, borderColor: '#eee', elevation: 10, shadowColor: '#000', shadowOffset: { width: 0, height: -2 }, shadowOpacity: 0.1, shadowRadius: 4 },
-  cantidadRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 15 },
-  cantidadLabel: { fontSize: 16, fontWeight: '600' },
-  cantidadControls: { flexDirection: 'row', alignItems: 'center' },
-  cantidadBtn: { width: 40, height: 40, backgroundColor: '#f0f0f0', borderRadius: 20, justifyContent: 'center', alignItems: 'center' },
-  cantidadBtnText: { fontSize: 24, fontWeight: 'bold', color: '#333' },
-  cantidadValue: { fontSize: 20, fontWeight: 'bold', marginHorizontal: 20 },
-  agregarBtn: { backgroundColor: '#FF6B35', padding: 18, borderRadius: 12, alignItems: 'center' },
-  agregarBtnDisabled: { backgroundColor: '#ccc' },
-  agregarBtnText: { color: '#fff', fontSize: 18, fontWeight: 'bold' },
+  container: { flex: 1 },
+  imagen: { width: '100%', height: 350 },
+  imageContainer: { position: 'relative' },
+  imageDots: { position: 'absolute', bottom: 20, width: '100%', flexDirection: 'row', justifyContent: 'center', gap: 6 },
+  dot: { width: 8, height: 8, borderRadius: 4, backgroundColor: 'rgba(255,255,255,0.4)' },
+  backFloat: { position: 'absolute', top: 50, left: 20, width: 40, height: 40, borderRadius: 20, justifyContent: 'center', alignItems: 'center', elevation: 5 },
+  content: { padding: 20, borderTopLeftRadius: 30, borderTopRightRadius: 30, marginTop: -30, backgroundColor: 'transparent' },
+  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
+  nombre: { fontSize: 24, fontWeight: 'bold' },
+  categoria: { fontSize: 14, marginTop: 4, fontWeight: '600', textTransform: 'uppercase' },
+  favCircle: { width: 50, height: 50, borderRadius: 25, justifyContent: 'center', alignItems: 'center', elevation: 3 },
+  favorito: { fontSize: 22 },
+  precio: { fontSize: 32, fontWeight: 'bold', marginTop: 15 },
+  tiendaCard: { padding: 12, borderRadius: 15, flexDirection: 'row', alignItems: 'center', marginTop: 25, elevation: 1 },
+  tiendaThumb: { width: 45, height: 45, borderRadius: 23 },
+  tiendaInfo: { flex: 1, marginLeft: 12 },
+  tiendaLabel: { fontSize: 10, textTransform: 'uppercase' },
+  tiendaNombre: { fontSize: 15, fontWeight: 'bold' },
+  ratingBadge: { backgroundColor: '#27ae60', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 10 },
+  section: { marginTop: 30 },
+  sectionTitle: { fontSize: 18, fontWeight: 'bold', marginBottom: 12 },
+  descripcion: { fontSize: 15, lineHeight: 24 },
+  footerActions: { flexDirection: 'row', marginTop: 40, marginBottom: 50, gap: 15 },
+  cantidadContainer: { flexDirection: 'row', alignItems: 'center', borderRadius: 15, paddingHorizontal: 10 },
+  qtyBtn: { width: 40, height: 50, justifyContent: 'center', alignItems: 'center' },
+  qtyBtnText: { fontSize: 22, fontWeight: '300' },
+  cantidadText: { fontSize: 18, fontWeight: 'bold', minWidth: 30, textAlign: 'center' },
+  agregarButton: { flex: 1, height: 60, borderRadius: 15, justifyContent: 'center', alignItems: 'center', elevation: 3 },
+  agregarButtonText: { color: '#fff', fontSize: 16, fontWeight: 'bold' },
 });
