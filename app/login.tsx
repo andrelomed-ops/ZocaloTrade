@@ -52,61 +52,75 @@ export default function LoginScreen() {
 
     try {
       if (isLogin) {
+        // Soporte para login con email
         const { data, error } = await supabase.auth.signInWithPassword({
-          email,
-          password,
+          email: email.trim(),
+          password: password,
         });
 
         if (error) {
+          console.error('Login error:', error);
           if (error.message.includes('Invalid login credentials')) {
-            throw new Error('Correo o contraseña incorrectos');
-          }
-          if (error.message.includes('Email not confirmed')) {
-            throw new Error('Por favor confirma tu correo electrónico');
+            throw new Error('Correo o contraseña incorrectos. Asegúrate de usar el correo con el que te registraste.');
           }
           throw error;
         }
 
-        if (data.user) {
-          let userNombre = email.split('@')[0];
+        if (data?.session?.user) {
+          const user = data.session.user;
+          const userEmail = user.email || email;
+          const userNombre = user.user_metadata?.full_name || user.user_metadata?.name || userEmail.split('@')[0];
           
           setUser({
-            id: data.user.id,
+            id: user.id,
             nombre: userNombre,
-            email: data.user.email,
+            email: userEmail,
           });
-          Alert.alert('¡Bienvenido!', 'Has iniciado sesión correctamente');
+          
+          if (Platform.OS !== 'web') {
+            Alert.alert('¡Bienvenido!', 'Has iniciado sesión correctamente');
+          }
+          router.replace('/(tabs)');
         }
       } else {
+        // Registro
         const { data, error } = await supabase.auth.signUp({
-          email,
-          password,
+          email: email.trim(),
+          password: password,
+          options: {
+            data: {
+              name: nombre,
+              full_name: nombre,
+            }
+          }
         });
 
         if (error) {
           if (error.message.includes('User already registered')) {
             throw new Error('Este correo ya está registrado');
           }
-          if (error.message.includes('Password')) {
-            throw new Error('La contraseña debe tener al menos 6 caracteres');
-          }
           throw error;
         }
 
-        if (data.user) {
+        if (data?.user) {
           setUser({
             id: data.user.id,
-            nombre,
-            email,
+            nombre: nombre || email.split('@')[0],
+            email: data.user.email || email,
           });
+          
+          if (Platform.OS !== 'web') {
+            Alert.alert('¡Cuenta creada!', 'Te hemos enviado un correo de confirmación (revisa SPAM).');
+          }
+          router.replace('/(tabs)');
         }
-
-        Alert.alert('¡Cuenta creada!', 'Revisa tu correo para confirmar tu cuenta');
       }
-
-      router.replace('/(tabs)');
     } catch (error: any) {
-      Alert.alert('Error', error.message || 'Ocurrió un error');
+      if (Platform.OS === 'web') {
+        alert(error.message || 'Ocurrió un error');
+      } else {
+        Alert.alert('Error', error.message || 'Ocurrió un error');
+      }
     } finally {
       setLoading(false);
     }
@@ -125,36 +139,51 @@ export default function LoginScreen() {
         options: {
           redirectTo: redirectUrl,
           skipBrowserRedirect: Platform.OS !== 'web',
+          queryParams: {
+            access_type: 'offline',
+            prompt: 'consent',
+          },
         },
       });
       
       if (error) throw error;
       
+      // En Web, la página se redirigirá automáticamente.
+      // En Móvil, manejamos la sesión de retorno.
       if (Platform.OS !== 'web' && data?.url) {
-        const result = await WebBrowser.openAuthSessionAsync(
-          data.url,
-          redirectUrl
-        );
+        const result = await WebBrowser.openAuthSessionAsync(data.url, redirectUrl);
         
-        if (result.type === 'success') {
-          const { data: { session } } = await supabase.auth.getSession();
-          if (session?.user) {
-            const user = session.user;
-            const userEmail = user.email || '';
-            const userNombre = user.user_metadata?.full_name || userEmail.split('@')[0];
-            
-            setUser({
-              id: user.id,
-              nombre: userNombre,
-              email: userEmail,
+        if (result.type === 'success' && result.url) {
+          const urlObj = new URL(result.url);
+          const hash = urlObj.hash.substring(1);
+          const params = new URLSearchParams(hash);
+          
+          const accessToken = params.get('access_token');
+          const refreshToken = params.get('refresh_token');
+          
+          if (accessToken && refreshToken) {
+            const { data: sessionData, error: sessionError } = await supabase.auth.setSession({
+              access_token: accessToken,
+              refresh_token: refreshToken,
             });
             
-            router.replace('/(tabs)');
+            if (sessionError) throw sessionError;
+            if (sessionData.session) {
+              const user = sessionData.session.user;
+              setUser({
+                id: user.id,
+                nombre: user.user_metadata?.full_name || user.email?.split('@')[0] || 'Usuario',
+                email: user.email || '',
+              });
+              router.replace('/(tabs)');
+            }
           }
         }
       }
     } catch (error: any) {
-      Alert.alert('Error', 'No se pudo iniciar sesión con Google: ' + error.message);
+      const msg = error.message || 'Error al conectar con Google';
+      if (Platform.OS === 'web') alert(msg);
+      else Alert.alert('Error', msg);
     } finally {
       setLoading(false);
     }
