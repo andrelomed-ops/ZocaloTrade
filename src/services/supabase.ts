@@ -12,7 +12,7 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   }
 });
 
-export const TABLES = {
+export const TABLES: any = {
   PERFILES: 'perfiles',
   TIENDAS: 'tiendas',
   PRODUCTOS: 'productos',
@@ -20,3 +20,7 @@ export const TABLES = {
 };
 
 export const BUCKET_NAME = 'productos';
+
+export const uploadImage = async (uri: string) => {
+  return null; // Mock for now
+};

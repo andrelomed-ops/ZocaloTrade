@@ -53,11 +53,13 @@ interface AppState {
   initialized: boolean;
   darkMode: boolean;
   colors: any;
+  userLocation: { lat: number; lng: number } | null;
   
   initialize: () => Promise<void>;
   setUser: (user: User | null) => void;
   setRol: (rol: string) => void;
   setDarkMode: (darkMode: boolean) => void;
+  setUserLocation: (loc: { lat: number; lng: number } | null) => void;
   toggleFavorito: (id: string) => void;
   addToCarrito: (p: any) => void;
   clearCarrito: () => void;
@@ -97,6 +99,7 @@ export const useStore = create<AppState>((set) => ({
   initialized: false,
   darkMode: false,
   colors: LIGHT_COLORS,
+  userLocation: null,
   
   setUser: (user) => set({ user }),
   setRol: (rol) => set({ rol }),
@@ -104,6 +107,7 @@ export const useStore = create<AppState>((set) => ({
     darkMode, 
     colors: darkMode ? DARK_COLORS : LIGHT_COLORS 
   }),
+  setUserLocation: (userLocation) => set({ userLocation }),
   
   initialize: async () => {
     try {

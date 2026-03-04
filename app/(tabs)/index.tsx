@@ -1,19 +1,49 @@
-import { View, Text, ScrollView, TouchableOpacity, Image, StyleSheet, RefreshControl } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, Image, StyleSheet, RefreshControl, Platform } from 'react-native';
 import { router } from 'expo-router';
 import { CATEGORIAS, MOCK_PRODUCTOS, MOCK_TIENDAS } from '../../src/store/useStore';
 import { useStore } from '../../src/store/useStore';
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
+import * as Location from 'expo-location';
 
 export default function HomeScreen() {
-  const { addToCarrito, favoritos, toggleFavorito, productos, tiendas, colors, initialize } = useStore();
+  const { addToCarrito, favoritos, toggleFavorito, productos, tiendas, colors, initialize, setUserLocation, userLocation } = useStore();
   const [categoriaSeleccionada, setCategoriaSeleccionada] = useState('Todos');
   const [refreshing, setRefreshing] = useState(false);
+
+  useEffect(() => {
+    (async () => {
+      let { status } = await Location.requestForegroundPermissionsAsync();
+      if (status === 'granted') {
+        let location = await Location.getCurrentPositionAsync({});
+        setUserLocation({
+          lat: location.coords.latitude,
+          lng: location.coords.longitude
+        });
+      }
+    })();
+  }, []);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
     await initialize();
     setRefreshing(false);
   }, [initialize]);
+
+  const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number) => {
+    if (!lat1 || !lon1 || !lat2 || !lon2) return null;
+    const R = 6371; // Radius of the earth in km
+    const dLat = deg2rad(lat2 - lat1);
+    const dLon = deg2rad(lon2 - lon1);
+    const a = 
+      Math.sin(dLat/2) * Math.sin(dLat/2) +
+      Math.cos(deg2rad(lat1)) * Math.cos(deg2rad(lat2)) * 
+      Math.sin(dLon/2) * Math.sin(dLon/2); 
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a)); 
+    const d = R * c; // Distance in km
+    return d.toFixed(1);
+  };
+
+  const deg2rad = (deg: number) => deg * (Math.PI/180);
 
   const filteredProducts = (categoriaSeleccionada === 'Todos' 
     ? (productos || []) 
@@ -56,18 +86,23 @@ export default function HomeScreen() {
 
       <Text style={[styles.sectionTitle, { color: colors.text }]}>Tiendas Populares</Text>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.tiendasScroll}>
-        {activeTiendas.map((tienda) => (
-          <TouchableOpacity key={tienda.id} style={[styles.tiendaCard, { backgroundColor: colors.card }]}>
-            <Image source={{ uri: tienda.fotoPerfil }} style={styles.tiendaImage} />
-            <Text style={[styles.tiendaNombre, { color: colors.text }]}>{tienda.nombre || tienda.nombre_tienda}</Text>
-            <Text style={[styles.tiendaRating, { color: colors.subtext }]}>⭐ {tienda.rating}</Text>
-          </TouchableOpacity>
-        ))}
+        {activeTiendas.map((tienda: any) => {
+          const distance = userLocation ? calculateDistance(userLocation.lat, userLocation.lng, tienda.latitud || 19.4326, tienda.longitud || -99.1332) : null;
+          return (
+            <TouchableOpacity key={tienda.id} style={[styles.tiendaCard, { backgroundColor: colors.card }]}>
+              <Image source={{ uri: tienda.fotoPerfil || 'https://picsum.photos/100/100' }} style={styles.tiendaImage} />
+              <Text style={[styles.tiendaNombre, { color: colors.text }]} numberOfLines={1}>{tienda.nombre || tienda.nombre_tienda}</Text>
+              <Text style={[styles.tiendaRating, { color: colors.subtext }]}>
+                ⭐ {tienda.rating} {distance ? `• ${distance}km` : ''}
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
       </ScrollView>
 
       <Text style={[styles.sectionTitle, { color: colors.text }]}>Productos Destacados</Text>
       <View style={styles.productosGrid}>
-        {filteredProducts.map((producto) => {
+        {(filteredProducts.length > 0 ? filteredProducts : MOCK_PRODUCTOS).map((producto) => {
           const isFavorite = (favoritos || []).includes(producto.id);
           return (
             <TouchableOpacity
