@@ -1,72 +1,37 @@
-import { View, Text, TouchableOpacity, StyleSheet, Image } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Image, ActivityIndicator } from 'react-native';
 import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
+import { supabase } from '../src/services/supabase';
 
 export default function SplashScreen() {
-  const [isReady, setIsReady] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Auto-navigate to tabs after 2 seconds
-    setTimeout(() => {
-      router.replace('/(tabs)');
-    }, 2000);
+    const checkAuthAndNavigate = async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        
+        // Wait a small bit for splash screen feel
+        setTimeout(() => {
+          router.replace('/(tabs)');
+        }, 1500);
+        
+      } catch (error) {
+        router.replace('/(tabs)');
+      }
+    };
+
+    checkAuthAndNavigate();
   }, []);
 
-  const handleGetStarted = () => {
-    router.replace('/(tabs)');
-  };
-
-  const handleLogin = () => {
-    router.push('/login');
-  };
-
-  if (!isReady) {
-    return (
-      <View style={styles.splash}>
-        <Text style={styles.logo}>🏪</Text>
-        <Text style={styles.appName}>ZocaloTrade</Text>
-        <Text style={styles.tagline}>Tu marketplace del Zócalo</Text>
-        <View style={styles.loading}>
-          <Text style={styles.loadingText}>Cargando...</Text>
-        </View>
-      </View>
-    );
-  }
-
   return (
-    <View style={styles.welcome}>
-      <View style={styles.content}>
-        <Text style={styles.welcomeLogo}>🏪</Text>
-        <Text style={styles.welcomeTitle}>Bienvenido a</Text>
-        <Text style={styles.welcomeAppName}>ZocaloTrade</Text>
-        <Text style={styles.welcomeSubtitle}>
-          Descubre los mejores productos y artesanías del Zócalo de Ciudad de México
-        </Text>
-        
-        <View style={styles.features}>
-          <View style={styles.featureItem}>
-            <Text style={styles.featureIcon}>🛍️</Text>
-            <Text style={styles.featureText}>Productos locales auténticos</Text>
-          </View>
-          <View style={styles.featureItem}>
-            <Text style={styles.featureIcon}>🚚</Text>
-            <Text style={styles.featureText}>Entrega rápida en el centro</Text>
-          </View>
-          <View style={styles.featureItem}>
-            <Text style={styles.featureIcon}>💰</Text>
-            <Text style={styles.featureText}>Mejor precio garantizado</Text>
-          </View>
-        </View>
-      </View>
-
-      <View style={styles.buttons}>
-        <TouchableOpacity style={styles.getStartedBtn} onPress={handleGetStarted}>
-          <Text style={styles.getStartedText}>Comenzar</Text>
-        </TouchableOpacity>
-        
-        <TouchableOpacity style={styles.loginBtn} onPress={handleLogin}>
-          <Text style={styles.loginText}>¿Ya tienes cuenta? Iniciar sesión</Text>
-        </TouchableOpacity>
+    <View style={styles.splash}>
+      <Text style={styles.logo}>🏪</Text>
+      <Text style={styles.appName}>ZocaloTrade</Text>
+      <Text style={styles.tagline}>Tu marketplace del Zócalo</Text>
+      <View style={styles.loading}>
+        <ActivityIndicator color="#fff" size="large" />
+        <Text style={styles.loadingText}>Cargando...</Text>
       </View>
     </View>
   );

@@ -7,34 +7,12 @@ import { useStore } from '../src/store/useStore';
 export default function RootLayout() {
   const { setUser } = useStore();
 
-  // Verificar sesión al cargar la app
+  // Verificar sesión al cargar la app y cuando cambie el estado
   useEffect(() => {
-    const checkSession = async () => {
-      try {
-        const { data: { session } } = await supabase.auth.getSession();
-        
-        if (session?.user) {
-          const email = session.user.email || '';
-          const nombre = session.user.user_metadata?.name || session.user.user_metadata?.full_name || email.split('@')[0] || 'Usuario';
-          
-          setUser({
-            id: session.user.id,
-            nombre: nombre,
-            email: email,
-          });
-        }
-      } catch (error) {
-        console.log('Session check error:', error);
-      }
-    };
-    
-    checkSession();
-    
-    // Escuchar cambios en auth
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+    const updateSession = (session: any) => {
       if (session?.user) {
         const email = session.user.email || '';
-        const nombre = session.user.user_metadata?.name || session.user.user_metadata?.full_name || email.split('@')[0] || 'Usuario';
+        const nombre = session.user.user_metadata?.full_name || session.user.user_metadata?.name || email.split('@')[0] || 'Usuario';
         
         setUser({
           id: session.user.id,
@@ -44,6 +22,16 @@ export default function RootLayout() {
       } else {
         setUser(null);
       }
+    };
+
+    // 1. Verificar sesión actual
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      updateSession(session);
+    });
+
+    // 2. Escuchar cambios (para Google Login redirect)
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      updateSession(session);
     });
     
     return () => subscription.unsubscribe();
