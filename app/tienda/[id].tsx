@@ -4,61 +4,63 @@ import { useLocalSearchParams, router } from 'expo-router';
 
 export default function DetalleTiendaScreen() {
   const { id } = useLocalSearchParams();
-  const { addToCarrito, productos, tiendas } = useStore();
+  const { addToCarrito, productos, tiendas, colors } = useStore();
   
   const tienda = (tiendas.length > 0 ? tiendas : MOCK_TIENDAS).find(t => t.id === id) as Tienda | undefined;
   const productosTienda = (productos.length > 0 ? productos : MOCK_PRODUCTOS).filter(p => p.tiendaId === id);
 
   if (!tienda) {
     return (
-      <View style={styles.notFound}>
-        <Text style={styles.notFoundText}>Tienda no encontrada</Text>
+      <View style={[styles.notFound, { backgroundColor: colors.background }]}>
+        <Text style={{ color: colors.text }}>Tienda no encontrada</Text>
       </View>
     );
   }
 
   return (
-    <ScrollView style={styles.container}>
-      <View style={styles.header}>
-        <Image source={{ uri: tienda.fotoPerfil }} style={styles.fotoPortada} />
+    <ScrollView style={[styles.container, { backgroundColor: colors.background }]}>
+      <View style={[styles.header, { backgroundColor: colors.primary }]}>
+        <Image source={{ uri: tienda.fotoPerfil || 'https://picsum.photos/400/400' }} style={styles.fotoPortada} />
         <View style={styles.headerOverlay}>
-          <View style={styles.perfilContainer}>
-            <Image source={{ uri: tienda.fotoPerfil }} style={styles.fotoPerfil} />
+          <View style={[styles.perfilContainer, { backgroundColor: colors.card }]}>
+            <Image source={{ uri: tienda.fotoPerfil || 'https://picsum.photos/100/100' }} style={styles.fotoPerfil} />
           </View>
         </View>
       </View>
 
-      <View style={styles.infoSection}>
-        <Text style={styles.tiendaNombre}>{tienda.nombre}</Text>
+      <View style={[styles.infoSection, { backgroundColor: colors.card }]}>
+        <Text style={[styles.tiendaNombre, { color: colors.text }]}>{tienda.nombre}</Text>
         <View style={styles.ratingRow}>
           <Text style={styles.rating}>⭐ {tienda.rating}</Text>
-          <Text style={styles.categoria}>{tienda.categoria}</Text>
+          <Text style={[styles.categoria, { backgroundColor: colors.background, color: colors.subtext }]}>{tienda.categoria}</Text>
         </View>
-        <Text style={styles.direccion}>📍 Entregas en todo el Zócalo, CDMX</Text>
-        <Text style={styles.descripcion}>{tienda.descripcion}</Text>
+        <Text style={[styles.direccion, { color: colors.subtext }]}>📍 Zócalo, Ciudad de México</Text>
+        <Text style={[styles.descripcion, { color: colors.text }]}>{tienda.descripcion}</Text>
 
-        <View style={styles.statsRow}>
+        <View style={[styles.statsRow, { borderColor: colors.border }]}>
           <View style={styles.statItem}>
-            <Text style={styles.statValue}>{productosTienda.length}</Text>
-            <Text style={styles.statLabel}>Productos</Text>
+            <Text style={[styles.statValue, { color: colors.primary }]}>{productosTienda.length}</Text>
+            <Text style={[styles.statLabel, { color: colors.subtext }]}>Productos</Text>
           </View>
           <View style={styles.statItem}>
-            <Text style={styles.statValue}>4.8</Text>
-            <Text style={styles.statLabel}>Rating</Text>
-          </View>
-          <View style={styles.statItem}>
-            <Text style={styles.statValue}>🚚</Text>
-            <Text style={styles.statLabel}>Envíos</Text>
+            <Text style={[styles.statValue, { color: colors.primary }]}>4.9</Text>
+            <Text style={[styles.statLabel, { color: colors.subtext }]}>Ventas</Text>
           </View>
         </View>
 
-        <TouchableOpacity style={styles.contactBtn}>
+        <TouchableOpacity 
+          style={[styles.contactBtn, { backgroundColor: colors.primary }]}
+          onPress={() => router.push({
+            pathname: '/chat-soporte',
+            params: { receptorId: tienda.id, nombreReceptor: tienda.nombre }
+          })}
+        >
           <Text style={styles.contactBtnText}>📱 Contactar Tienda</Text>
         </TouchableOpacity>
       </View>
 
-      <View style={styles.productosSection}>
-        <Text style={styles.sectionTitle}>Productos de la tienda ({productosTienda.length})</Text>
+      <View style={[styles.productosSection, { backgroundColor: colors.card }]}>
+        <Text style={[styles.sectionTitle, { color: colors.text }]}>Catálogo ({productosTienda.length})</Text>
         
         {productosTienda.length > 0 ? (
           <FlatList
@@ -66,24 +68,20 @@ export default function DetalleTiendaScreen() {
             keyExtractor={(item) => item.id}
             horizontal
             showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.productosList}
             renderItem={({ item }) => (
               <TouchableOpacity 
-                style={styles.productoCard}
+                style={[styles.productoCard, { backgroundColor: colors.background }]}
                 onPress={() => router.push(`/producto/${item.id}`)}
               >
                 <Image 
-                  source={{ uri: item.fotos?.[0] || item.foto }} 
+                  source={{ uri: item.fotos?.[0] || 'https://picsum.photos/400/400' }} 
                   style={styles.productoImage} 
                 />
-                <Text style={styles.productoNombre} numberOfLines={1}>{item.nombre}</Text>
-                <Text style={styles.productoPrecio}>${item.precio}</Text>
+                <Text style={[styles.productoNombre, { color: colors.text }]} numberOfLines={1}>{item.nombre}</Text>
+                <Text style={[styles.productoPrecio, { color: colors.primary }]}>${item.precio}</Text>
                 <TouchableOpacity 
-                  style={styles.agregarBtn}
-                  onPress={(e) => {
-                    e.stopPropagation();
-                    addToCarrito(item);
-                  }}
+                  style={[styles.agregarBtn, { backgroundColor: colors.primary }]}
+                  onPress={() => addToCarrito(item)}
                 >
                   <Text style={styles.agregarBtnText}>Agregar</Text>
                 </TouchableOpacity>
@@ -92,75 +90,52 @@ export default function DetalleTiendaScreen() {
           />
         ) : (
           <View style={styles.emptyProductos}>
-            <Text style={styles.emptyText}>Esta tienda no tiene productos aún</Text>
+            <Text style={{ color: colors.subtext }}>No hay productos disponibles</Text>
           </View>
         )}
       </View>
 
-      <View style={styles.horarioSection}>
-        <Text style={styles.sectionTitle}>🕐 Horario</Text>
-        <View style={styles.horarioRow}>
-          <Text style={styles.horarioDia}>Lunes - Viernes</Text>
-          <Text style={styles.horarioHora}>9:00 AM - 8:00 PM</Text>
+      <View style={[styles.horarioSection, { backgroundColor: colors.card }]}>
+        <Text style={[styles.sectionTitle, { color: colors.text }]}>🕐 Horario</Text>
+        <View style={[styles.horarioRow, { borderColor: colors.border }]}>
+          <Text style={{ color: colors.text }}>Lunes - Domingo</Text>
+          <Text style={{ color: colors.subtext }}>9:00 AM - 7:00 PM</Text>
         </View>
-        <View style={styles.horarioRow}>
-          <Text style={styles.horarioDia}>Sábado</Text>
-          <Text style={styles.horarioHora}>9:00 AM - 6:00 PM</Text>
-        </View>
-        <View style={styles.horarioRow}>
-          <Text style={styles.horarioDia}>Domingo</Text>
-          <Text style={styles.horarioHora}>10:00 AM - 4:00 PM</Text>
-        </View>
-      </View>
-
-      <View style={styles.politicasSection}>
-        <Text style={styles.sectionTitle}>📋 Políticas</Text>
-        <Text style={styles.politicaText}>• Los pedidos se preparan en 15-30 minutos</Text>
-        <Text style={styles.politicaText}>• Cancelaciones con 5 min de tolerancia</Text>
-        <Text style={styles.politicaText}>• Devoluciones solo por defectos</Text>
-        <Text style={styles.politicaText}>• Aceptamos efectivo y transferencias</Text>
       </View>
     </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f5f5f5' },
+  container: { flex: 1 },
   notFound: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  notFoundText: { fontSize: 18, color: '#666' },
-  header: { height: 180, backgroundColor: '#FF6B35' },
-  fotoPortada: { width: '100%', height: '100%', opacity: 0.3 },
-  headerOverlay: { position: 'absolute', bottom: -40, left: 0, right: 0, alignItems: 'center' },
-  perfilContainer: { width: 90, height: 90, borderRadius: 45, backgroundColor: '#fff', padding: 3, elevation: 5 },
-  fotoPerfil: { width: '100%', height: '100%', borderRadius: 45 },
-  infoSection: { marginTop: 50, padding: 20, backgroundColor: '#fff', alignItems: 'center' },
-  tiendaNombre: { fontSize: 24, fontWeight: 'bold', textAlign: 'center' },
+  header: { height: 160 },
+  fotoPortada: { width: '100%', height: '100%', opacity: 0.4 },
+  headerOverlay: { position: 'absolute', bottom: -30, left: 0, right: 0, alignItems: 'center' },
+  perfilContainer: { width: 80, height: 80, borderRadius: 40, padding: 3, elevation: 5 },
+  fotoPerfil: { width: '100%', height: '100%', borderRadius: 40 },
+  infoSection: { marginTop: 40, padding: 20, alignItems: 'center' },
+  tiendaNombre: { fontSize: 22, fontWeight: 'bold' },
   ratingRow: { flexDirection: 'row', alignItems: 'center', marginTop: 8 },
-  rating: { fontSize: 18, fontWeight: 'bold', color: '#f39c12' },
-  categoria: { marginLeft: 10, backgroundColor: '#f0f0f0', paddingHorizontal: 12, paddingVertical: 4, borderRadius: 12, fontSize: 12, color: '#666' },
-  direccion: { color: '#666', marginTop: 10 },
-  descripcion: { color: '#444', textAlign: 'center', marginTop: 10, lineHeight: 20 },
-  statsRow: { flexDirection: 'row', marginTop: 20, paddingTop: 20, borderTopWidth: 1, borderColor: '#eee', width: '100%', justifyContent: 'space-around' },
+  rating: { fontSize: 16, fontWeight: 'bold', color: '#f39c12' },
+  categoria: { marginLeft: 10, paddingHorizontal: 12, paddingVertical: 4, borderRadius: 12, fontSize: 11 },
+  direccion: { marginTop: 8, fontSize: 13 },
+  descripcion: { textAlign: 'center', marginTop: 15, lineHeight: 20, fontSize: 14 },
+  statsRow: { flexDirection: 'row', marginTop: 20, paddingTop: 15, borderTopWidth: 1, width: '100%', justifyContent: 'space-around' },
   statItem: { alignItems: 'center' },
-  statValue: { fontSize: 20, fontWeight: 'bold', color: '#FF6B35' },
-  statLabel: { color: '#666', fontSize: 12, marginTop: 4 },
-  contactBtn: { backgroundColor: '#FF6B35', paddingHorizontal: 30, paddingVertical: 12, borderRadius: 25, marginTop: 20 },
+  statValue: { fontSize: 18, fontWeight: 'bold' },
+  statLabel: { fontSize: 11, marginTop: 2 },
+  contactBtn: { paddingHorizontal: 30, paddingVertical: 12, borderRadius: 25, marginTop: 20 },
   contactBtnText: { color: '#fff', fontWeight: 'bold' },
-  productosSection: { marginTop: 15, backgroundColor: '#fff', padding: 15 },
+  productosSection: { marginTop: 15, padding: 15 },
   sectionTitle: { fontSize: 18, fontWeight: 'bold', marginBottom: 15 },
-  productosList: { paddingVertical: 5 },
-  productoCard: { width: 140, marginRight: 12, backgroundColor: '#f8f8f8', borderRadius: 12, padding: 10 },
+  productoCard: { width: 140, marginRight: 12, borderRadius: 12, padding: 10 },
   productoImage: { width: '100%', height: 100, borderRadius: 8 },
-  productoNombre: { fontSize: 14, fontWeight: '600', marginTop: 8 },
-  productoPrecio: { fontSize: 16, fontWeight: 'bold', color: '#FF6B35', marginTop: 4 },
-  agregarBtn: { backgroundColor: '#FF6B35', padding: 8, borderRadius: 6, alignItems: 'center', marginTop: 8 },
-  agregarBtnText: { color: '#fff', fontSize: 12, fontWeight: 'bold' },
+  productoNombre: { fontSize: 13, fontWeight: '600', marginTop: 8 },
+  productoPrecio: { fontSize: 15, fontWeight: 'bold', marginTop: 4 },
+  agregarBtn: { padding: 6, borderRadius: 6, alignItems: 'center', marginTop: 8 },
+  agregarBtnText: { color: '#fff', fontSize: 11, fontWeight: 'bold' },
   emptyProductos: { padding: 30, alignItems: 'center' },
-  emptyText: { color: '#666' },
-  horarioSection: { marginTop: 15, backgroundColor: '#fff', padding: 15 },
-  horarioRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 10, borderBottomWidth: 1, borderColor: '#eee' },
-  horarioDia: { color: '#333', fontWeight: '600' },
-  horarioHora: { color: '#666' },
-  politicasSection: { marginTop: 15, marginBottom: 30, backgroundColor: '#fff', padding: 15 },
-  politicaText: { color: '#666', marginBottom: 8, lineHeight: 22 },
+  horarioSection: { marginTop: 15, padding: 15, marginBottom: 40 },
+  horarioRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 10, borderBottomWidth: 1 },
 });

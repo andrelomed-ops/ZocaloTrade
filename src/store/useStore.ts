@@ -29,7 +29,24 @@ export interface User {
   id: string;
   nombre: string;
   email: string;
+  telefono?: string;
   fotoPerfil?: string;
+}
+
+export interface Pedido {
+  id: string;
+  cliente_id: string;
+  tienda_id: string;
+  productos: any[];
+  subtotal: number;
+  total: number;
+  direccion_entrega: string;
+  status: string;
+  clinckargo_id?: string | null;
+  created_at: string;
+  comision?: number;
+  metodo_pago?: string;
+  etapas_seguimiento?: any[];
 }
 
 export const CATEGORIAS = ['Todos', 'Comida', 'Bebidas', 'Artesanía', 'Ropa', 'Accesorios'];
@@ -39,7 +56,7 @@ export const MOCK_PRODUCTOS: Producto[] = [
 ];
 
 export const MOCK_TIENDAS: Tienda[] = [
-  { id: 't1', nombre: 'Tienda Zocalo', descripcion: 'Lo mejor del centro', direccion: 'Zócalo, CDMX', latitud: 0, longitud: 0, fotoPerfil: 'https://picsum.photos/100/100', rating: 5.0, categoria: 'General' },
+  { id: 't1', nombre: 'Tienda Zocalo', descripcion: 'Lo mejor del centro', direccion: 'Zócalo, CDMX', latitud: 19.4326, longitud: -99.1332, fotoPerfil: 'https://picsum.photos/100/100', rating: 5.0, categoria: 'General' },
 ];
 
 interface AppState {
@@ -48,7 +65,7 @@ interface AppState {
   productos: Producto[];
   tiendas: Tienda[];
   carrito: any[];
-  pedidos: any[];
+  pedidos: Pedido[];
   favoritos: string[];
   notificaciones: any[];
   initialized: boolean;
@@ -62,7 +79,8 @@ interface AppState {
   setDarkMode: (darkMode: boolean) => void;
   setUserLocation: (loc: { lat: number; lng: number } | null) => void;
   toggleFavorito: (id: string) => void;
-  addToCarrito: (p: any) => void;
+  addToCarrito: (p: any, cantidad?: number) => void;
+  removeFromCarrito: (id: string) => void;
   clearCarrito: () => void;
   addPedido: (p: any) => Promise<void>;
   loadPedidos: (userId: string) => Promise<void>;
@@ -91,7 +109,7 @@ const DARK_COLORS = {
   border: '#333333',
 };
 
-export const useStore = create<AppState>((set) => ({
+export const useStore = create<AppState>((set, get) => ({
   user: null,
   rol: 'cliente',
   productos: [],
@@ -115,18 +133,16 @@ export const useStore = create<AppState>((set) => ({
   
   initialize: async () => {
     try {
-      // 1. Cargar Categorías (puedes crear una tabla o usarlas fijas, aquí las traemos de productos)
       const { data: catData } = await supabase.from(TABLES.PRODUCTOS).select('categoria').not('categoria', 'is', null);
-      const uniqueCats = ['Todos', ...new Set((catData || []).map(item => item.categoria))];
-
-      // 2. Cargar productos y tiendas
+      
       const { data: p } = await supabase.from(TABLES.PRODUCTOS).select('*').eq('activo', true);
       const { data: t } = await supabase.from(TABLES.TIENDAS).select('*').eq('activa', true);
       
       const formattedProducts = (p || []).map((item: any) => ({
         ...item,
         tiendaId: item.tienda_id,
-        fotos: item.fotos || ['https://picsum.photos/400/400']
+        fotos: item.fotos || ['https://picsum.photos/400/400'],
+        disponible: item.activo
       }));
 
       set({
@@ -142,11 +158,9 @@ export const useStore = create<AppState>((set) => ({
 
   loadUserExtras: async (userId: string) => {
     try {
-      const { data: favs } = await supabase.from('perfiles').select('favoritos').eq('id', userId).single();
-      if (favs?.favoritos) set({ favoritos: favs.favoritos });
-
-      const { data: carts } = await supabase.from('perfiles').select('carrito').eq('id', userId).single();
-      if (carts?.carrito) set({ carrito: carts.carrito });
+      const { data: profile } = await supabase.from('perfiles').select('favoritos, carrito').eq('id', userId).maybeSingle();
+      if (profile?.favoritos) set({ favoritos: profile.favoritos });
+      if (profile?.carrito) set({ carrito: profile.carrito });
 
       const { data: notifs } = await supabase.from('notificaciones').select('*').eq('usuario_id', userId).order('created_at', { ascending: false });
       if (notifs) set({ notificaciones: notifs });
@@ -159,15 +173,27 @@ export const useStore = create<AppState>((set) => ({
       : [...(s.favoritos || []), id]
   })),
 
-  addToCarrito: (p) => set((s) => ({
-    carrito: [...(s.carrito || []), { producto: p, cantidad: 1 }]
+  addToCarrito: (producto, cantidad = 1) => set((s) => {
+    const existing = s.carrito.find(item => item.producto.id === producto.id);
+    if (existing) {
+      return {
+        carrito: s.carrito.map(item =>
+          item.producto.id === producto.id ? { ...item, cantidad: item.cantidad + cantidad } : item
+        )
+      };
+    }
+    return { carrito: [...s.carrito, { producto, cantidad }] };
+  }),
+
+  removeFromCarrito: (productoId) => set((s) => ({
+    carrito: s.carrito.filter(item => item.producto.id !== productoId)
   })),
 
   clearCarrito: () => set({ carrito: [] }),
 
   addPedido: async (pedido: any) => {
     try {
-      const { data } = await supabase.from(TABLES.PEDIDOS).insert(pedido).select().single();
+      const { data, error } = await supabase.from(TABLES.PEDIDOS).insert(pedido).select().single();
       if (data) set((s) => ({ pedidos: [data, ...s.pedidos] }));
     } catch (e) {}
   },

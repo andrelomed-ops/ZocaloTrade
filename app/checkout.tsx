@@ -3,6 +3,7 @@ import { useStore } from '../src/store/useStore';
 import { router } from 'expo-router';
 import { useState } from 'react';
 import { supabase, TABLES } from '../src/services/supabase';
+import { createClincKargoOrder } from '../src/services/clinckargo';
 
 const ZONAS_ENVIO = [
   { id: 'centro', nombre: 'Centro Histórico', precio: 50 },
@@ -33,9 +34,26 @@ export default function CheckoutScreen() {
     setConfirmando(true);
 
     try {
+      const zocaloOrderId = `ZOC-${Date.now()}`;
+      
+      // 1. Crear orden en ClincKargo
+      const transportOrder = await createClincKargoOrder({
+        pedidoId: zocaloOrderId,
+        pickupAddress: 'Zócalo de la Ciudad de México, Centro Histórico, CDMX',
+        dropoffAddress: direccionEntrega,
+        items: carrito.map(item => ({
+          name: item.producto.nombre,
+          size: item.producto.precio < 500 ? 'Mediano' : 'Grande',
+          quantity: item.cantidad
+        })),
+        customerName: user?.nombre,
+        customerPhone: user?.telefono
+      });
+
       const nuevoPedido = {
-        clienteId: user?.id,
-        tiendaId: carrito[0]?.producto.tiendaId,
+        id: zocaloOrderId,
+        cliente_id: user?.id,
+        tienda_id: carrito[0]?.producto.tiendaId,
         productos: carrito.map(item => ({
           id: item.producto.id,
           nombre: item.producto.nombre,
@@ -44,20 +62,21 @@ export default function CheckoutScreen() {
         })),
         subtotal,
         total,
-        direccionEntrega,
-        metodoPago,
+        direccion_entrega: direccionEntrega,
+        metodo_pago: metodoPago,
         status: 'pendiente',
-        createdAt: new Date().toISOString()
+        clinckargo_id: transportOrder.success ? transportOrder.orderId : null,
+        created_at: new Date().toISOString()
       };
 
       await addPedido(nuevoPedido);
       clearCarrito();
       
-      const successMsg = '¡Pedido creado con éxito! 🎉';
+      const successMsg = '¡Pedido creado con éxito! 🎉' + (transportOrder.success ? '\nTransportista asignado vía ClincKargo.' : '');
       if (Platform.OS === 'web') alert(successMsg);
       else Alert.alert('¡Éxito!', successMsg);
       
-      router.replace('/(tabs)/pedidos');
+      router.replace(`/(tabs)/pedidos`);
     } catch (error) {
       if (Platform.OS === 'web') alert('Error al procesar pedido');
       else Alert.alert('Error', 'No se pudo crear el pedido');
