@@ -1,158 +1,197 @@
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, FlatList, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, FlatList, KeyboardAvoidingView, Platform, ActivityIndicator } from 'react-native';
 import { useState, useEffect, useRef } from 'react';
+import { useLocalSearchParams } from 'expo-router';
+import { supabase } from '../src/services/supabase';
+import { useStore } from '../src/store/useStore';
 import { chatAsistenteZocaloTrade } from '../src/services/aiService';
 
-interface Mensaje {
+interface Message {
   id: string;
   texto: string;
-  esUsuario: boolean;
-  timestamp: Date;
+  emisor_id: string;
+  receptor_id: string;
+  es_bot?: boolean;
+  created_at: string;
 }
 
-const MENSAJES_INICIALES: Mensaje[] = [
-  { id: '1', texto: '¡Hola! 👋 Soy el asistente de ZocaloTrade. ¿En qué puedo ayudarte hoy?', esUsuario: false, timestamp: new Date() },
-];
-
 export default function ChatSoporteScreen() {
-  const [mensajes, setMensajes] = useState<Mensaje[]>(MENSAJES_INICIALES);
+  const { user, colors } = useStore();
+  const { receptorId, nombreReceptor, pedidoId } = useLocalSearchParams<{ 
+    receptorId?: string; 
+    nombreReceptor?: string;
+    pedidoId?: string;
+  }>();
+
+  const [mensajes, setMensajes] = useState<Message[]>([]);
   const [input, setInput] = useState('');
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [typing, setTyping] = useState(false);
   const flatListRef = useRef<FlatList>(null);
 
-  const enviarMensaje = async () => {
-    if (!input.trim() || loading) return;
+  // ID de soporte por defecto (UUID nulo para representar al sistema/bot)
+  const SYSTEM_ID = '00000000-0000-0000-0000-000000000000';
+  const targetId = receptorId || SYSTEM_ID;
+  const isAiMode = targetId === SYSTEM_ID;
 
-    const mensajeUsuario: Mensaje = {
-      id: Date.now().toString(),
-      texto: input.trim(),
-      esUsuario: true,
-      timestamp: new Date(),
+  useEffect(() => {
+    if (!user) {
+      setLoading(false);
+      return;
+    }
+
+    // 1. Cargar historial de la base de datos
+    const fetchHistory = async () => {
+      const { data, error } = await supabase
+        .from('mensajes')
+        .select('*')
+        .or(`and(emisor_id.eq.${user.id},receptor_id.eq.${targetId}),and(emisor_id.eq.${targetId},receptor_id.eq.${user.id})`)
+        .order('created_at', { ascending: true });
+
+      if (data) setMensajes(data);
+      setLoading(false);
     };
 
-    setMensajes(prev => [...prev, mensajeUsuario]);
-    setInput('');
-    setLoading(true);
+    fetchHistory();
 
-    try {
-      const respuesta = await chatAsistenteZocaloTrade(mensajeUsuario.texto);
-      
-      const mensajeBot: Mensaje = {
-        id: (Date.now() + 1).toString(),
-        texto: respuesta,
-        esUsuario: false,
-        timestamp: new Date(),
-      };
-      
-      setMensajes(prev => [...prev, mensajeBot]);
-    } catch (error) {
-      const mensajeError: Mensaje = {
-        id: (Date.now() + 1).toString(),
-        texto: 'Lo siento, tuve un problema al procesar tu mensaje. Por favor intenta de nuevo.',
-        esUsuario: false,
-        timestamp: new Date(),
-      };
-      setMensajes(prev => [...prev, mensajeError]);
-    } finally {
-      setLoading(false);
+    // 2. Suscribirse a cambios en tiempo real
+    const channel = supabase
+      .channel(`chat_${user.id}_${targetId}`)
+      .on('postgres_changes', { 
+        event: 'INSERT', 
+        schema: 'public', 
+        table: 'mensajes' 
+      }, (payload) => {
+        const newMsg = payload.new as Message;
+        // Verificar si el mensaje pertenece a esta conversación
+        if (
+          (newMsg.emisor_id === user.id && newMsg.receptor_id === targetId) ||
+          (newMsg.emisor_id === targetId && newMsg.receptor_id === user.id)
+        ) {
+          setMensajes(prev => {
+            if (prev.some(m => m.id === newMsg.id)) return prev;
+            return [...prev, newMsg];
+          });
+        }
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user, targetId]);
+
+  const enviarMensaje = async () => {
+    if (!input.trim() || !user) return;
+
+    const texto = input.trim();
+    setInput('');
+
+    // 1. Guardar en DB
+    const { data, error } = await supabase.from('mensajes').insert({
+      emisor_id: user.id,
+      receptor_id: targetId,
+      texto: texto,
+      pedido_id: pedidoId || null
+    }).select().single();
+
+    if (error) {
+      console.error(error);
+      return;
+    }
+
+    // 2. Si es modo AI, generar respuesta automática
+    if (isAiMode) {
+      setTyping(true);
+      try {
+        const respuestaAi = await chatAsistenteZocaloTrade(texto);
+        await supabase.from('mensajes').insert({
+          emisor_id: SYSTEM_ID,
+          receptor_id: user.id,
+          texto: respuestaAi,
+          es_bot: true
+        });
+      } catch (e) {
+        console.error('AI Error:', e);
+      } finally {
+        setTyping(false);
+      }
     }
   };
 
-  const preguntasRapidas = [
-    { pregunta: '¿Cómo funciona ZocaloTrade?', respuesta: 'ZocaloTrade es un marketplace donde puedes comprar productos del Zócalo de CDMX. El proceso es: 1) Explora productos, 2) Agrega al carrito, 3) Paga solo el envío por tarjeta, 4) Paga el producto al repartidor al recibirlo.' },
-    { pregunta: '¿Cómo me registro como vendedor?', respuesta: 'Para vender: 1) Ve a Perfil, 2) Activa "Modo Vendedor", 3) Ve a Mi Tienda, 4) Agrega tus productos. ¡Listo para vender!' },
-    { pregunta: '¿Cuál es la comisión?', respuesta: 'La comisión de ZocaloTrade es del 10% por cada venta. El vendedor recibe el 90% del precio del producto.' },
-    { pregunta: '¿Cómo realizo un pedido?', respuesta: 'Para comprar: 1) Explora los productos, 2) Agrega al carrito, 3) Selecciona tu dirección, 4) Paga el envío, 5) Paga el producto al repartidor al recibir.' },
-    { pregunta: '¿Puedo cancelar un pedido?', respuesta: 'Sí, puedes cancelar mientras el estado sea "Pendiente". Una vez que el vendedor comience a prepararlo, ya no es posible.' },
-    { pregunta: '¿Cómo funciona el pago?', respuesta: 'Pagas el ENVÍO por adelantado con tarjeta. El PRODUCTO se paga al repartidor cuando te lo entregue (contraentrega).' },
-    { pregunta: '¿Cuánto cuesta el envío?', respuesta: 'El envío varía según la zona: Centro Histórico $50, CDMX $80-150, Estado de México $150-200. ¡Envío gratis en compras de más de $500!' },
-    { pregunta: '¿Qué es pago contraentrega?', respuesta: 'Es pagar el producto al repartidor cuando te lo entregue. No necesitas tarjeta, pagas en efectivo.' },
-  ];
-
-  const renderMensaje = ({ item }: { item: Mensaje }) => (
-    <View style={[styles.mensaje, item.esUsuario ? styles.mensajeUsuario : styles.mensajeBot]}>
-      <Text style={[styles.mensajeTexto, item.esUsuario && styles.mensajeTextoUsuario]}>
-        {item.texto}
-      </Text>
-      <Text style={[styles.mensajeHora, item.esUsuario && styles.mensajeHoraUsuario]}>
-        {item.timestamp.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' })}
-      </Text>
-    </View>
-  );
+  if (loading) {
+    return (
+      <View style={[styles.container, { backgroundColor: colors.background, justifyContent: 'center' }]}>
+        <ActivityIndicator color={colors.primary} size="large" />
+      </View>
+    );
+  }
 
   return (
     <KeyboardAvoidingView 
-      style={styles.container}
+      style={[styles.container, { backgroundColor: colors.background }]}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      keyboardVerticalOffset={90}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
     >
+      <View style={[styles.header, { backgroundColor: colors.primary }]}>
+        <Text style={styles.headerTitle}>{nombreReceptor || 'Asistente Zócalo'}</Text>
+        <Text style={styles.headerSubtitle}>{isAiMode ? 'Inteligencia Artificial' : 'Vendedor local'}</Text>
+      </View>
+
       <FlatList
         ref={flatListRef}
         data={mensajes}
         keyExtractor={(item) => item.id}
-        renderItem={renderMensaje}
         contentContainerStyle={styles.listaMensajes}
         onContentSizeChange={() => flatListRef.current?.scrollToEnd()}
-        ListHeaderComponent={
+        renderItem={({ item }) => {
+          const esMio = item.emisor_id === user?.id;
+          return (
+            <View style={[
+              styles.mensaje, 
+              esMio ? [styles.mensajeUsuario, { backgroundColor: colors.primary }] : [styles.mensajeBot, { backgroundColor: colors.card }]
+            ]}>
+              <Text style={[styles.mensajeTexto, { color: esMio ? '#fff' : colors.text }]}>
+                {item.texto}
+              </Text>
+              <Text style={[styles.mensajeHora, { color: esMio ? 'rgba(255,255,255,0.7)' : colors.subtext }]}>
+                {new Date(item.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+              </Text>
+            </View>
+          );
+        }}
+        ListEmptyComponent={
           <View style={styles.bienvenida}>
             <Text style={styles.bienvenidaIcon}>💬</Text>
-            <Text style={styles.bienvenidaTitulo}>Asistente Virtual ZocaloTrade</Text>
-            <Text style={styles.bienvenidaTexto}>
-              Estoy aquí para ayudarte con cualquier pregunta sobre la app, pedidos, vendedores o soporte.
+            <Text style={[styles.bienvenidaTitulo, { color: colors.text }]}>¡Bienvenido al Chat!</Text>
+            <Text style={[styles.bienvenidaTexto, { color: colors.subtext }]}>
+              {isAiMode 
+                ? 'Pregúntame lo que quieras sobre el Zócalo, tus pedidos o cómo vender.' 
+                : `Estás chateando con ${nombreReceptor || 'el vendedor'}.`}
             </Text>
-            <Text style={styles.preguntasTitulo}>Preguntas frecuentes:</Text>
-            {preguntasRapidas.map((item, index) => (
-              <TouchableOpacity
-                key={index}
-                style={styles.preguntaRapida}
-                onPress={() => {
-                  setInput(item.pregunta);
-                  // Automatically send the question
-                  setTimeout(() => {
-                    const mensajeUsuario = {
-                      id: Date.now().toString(),
-                      texto: item.pregunta,
-                      esUsuario: true,
-                      timestamp: new Date(),
-                    };
-                    setMensajes(prev => [...prev, mensajeUsuario]);
-                    
-                    const mensajeBot = {
-                      id: (Date.now() + 1).toString(),
-                      texto: item.respuesta,
-                      esUsuario: false,
-                      timestamp: new Date(),
-                    };
-                    setMensajes(prev => [...prev, mensajeBot]);
-                  }, 100);
-                }}
-              >
-                <Text style={styles.preguntaRapidaText}>{item.pregunta}</Text>
-              </TouchableOpacity>
-            ))}
           </View>
         }
       />
 
-      {loading && (
-        <View style={styles.typingContainer}>
-          <Text style={styles.typingText}>Escribiendo...</Text>
+      {typing && (
+        <View style={[styles.typingContainer, { backgroundColor: colors.background }]}>
+          <Text style={[styles.typingText, { color: colors.subtext }]}>Escribiendo respuesta...</Text>
         </View>
       )}
 
-      <View style={styles.inputContainer}>
+      <View style={[styles.inputContainer, { backgroundColor: colors.card, borderTopColor: colors.border }]}>
         <TextInput
-          style={styles.input}
+          style={[styles.input, { backgroundColor: colors.background, color: colors.text }]}
           placeholder="Escribe tu mensaje..."
-          placeholderTextColor="#999"
+          placeholderTextColor={colors.subtext}
           value={input}
           onChangeText={setInput}
           multiline
           maxLength={500}
         />
         <TouchableOpacity 
-          style={[styles.enviarBtn, (!input.trim() || loading) && styles.enviarBtnDisabled]}
+          style={[styles.enviarBtn, { backgroundColor: colors.primary }, (!input.trim()) && { opacity: 0.5 }]}
           onPress={enviarMensaje}
-          disabled={!input.trim() || loading}
+          disabled={!input.trim()}
         >
           <Text style={styles.enviarBtnText}>➤</Text>
         </TouchableOpacity>
@@ -162,27 +201,24 @@ export default function ChatSoporteScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f5f5f5' },
+  container: { flex: 1 },
+  header: { padding: 20, paddingTop: 40, alignItems: 'center' },
+  headerTitle: { fontSize: 18, fontWeight: 'bold', color: '#fff' },
+  headerSubtitle: { fontSize: 12, color: '#fff', opacity: 0.8 },
   listaMensajes: { padding: 15 },
-  mensaje: { maxWidth: '80%', padding: 15, borderRadius: 18, marginBottom: 10 },
-  mensajeUsuario: { alignSelf: 'flex-end', backgroundColor: '#FF6B35' },
-  mensajeBot: { alignSelf: 'flex-start', backgroundColor: '#fff' },
-  mensajeTexto: { fontSize: 15, color: '#333' },
-  mensajeTextoUsuario: { color: '#fff' },
-  mensajeHora: { fontSize: 10, color: '#999', marginTop: 5 },
-  mensajeHoraUsuario: { color: 'rgba(255,255,255,0.7)' },
-  typingContainer: { padding: 10, backgroundColor: '#fff' },
-  typingText: { color: '#666', fontStyle: 'italic' },
-  inputContainer: { flexDirection: 'row', padding: 10, backgroundColor: '#fff', borderTopWidth: 1, borderColor: '#eee' },
-  input: { flex: 1, backgroundColor: '#f0f0f0', borderRadius: 20, paddingHorizontal: 15, paddingVertical: 10, maxHeight: 100, fontSize: 15 },
-  enviarBtn: { width: 45, height: 45, backgroundColor: '#FF6B35', borderRadius: 22, justifyContent: 'center', alignItems: 'center', marginLeft: 10 },
-  enviarBtnDisabled: { backgroundColor: '#ccc' },
-  enviarBtnText: { fontSize: 20, color: '#fff' },
-  bienvenida: { alignItems: 'center', paddingVertical: 20, marginBottom: 10 },
-  bienvenidaIcon: { fontSize: 50 },
-  bienvenidaTitulo: { fontSize: 20, fontWeight: 'bold', marginTop: 10 },
-  bienvenidaTexto: { color: '#666', textAlign: 'center', marginTop: 10, paddingHorizontal: 20 },
-  preguntasTitulo: { fontSize: 14, fontWeight: '600', marginTop: 20, marginBottom: 10, color: '#333' },
-  preguntaRapida: { backgroundColor: '#fff', paddingHorizontal: 15, paddingVertical: 10, borderRadius: 15, marginBottom: 8, width: '100%' },
-  preguntaRapidaText: { color: '#FF6B35', fontSize: 14 },
+  mensaje: { maxWidth: '85%', padding: 12, borderRadius: 15, marginBottom: 10 },
+  mensajeUsuario: { alignSelf: 'flex-end', borderBottomRightRadius: 2 },
+  mensajeBot: { alignSelf: 'flex-start', borderBottomLeftRadius: 2 },
+  mensajeTexto: { fontSize: 14, lineHeight: 20 },
+  mensajeHora: { fontSize: 9, marginTop: 4, alignSelf: 'flex-end' },
+  typingContainer: { paddingHorizontal: 20, paddingBottom: 10 },
+  typingText: { fontSize: 12, fontStyle: 'italic' },
+  inputContainer: { flexDirection: 'row', padding: 12, borderTopWidth: 1, alignItems: 'center', gap: 10 },
+  input: { flex: 1, borderRadius: 20, paddingHorizontal: 15, paddingVertical: 10, maxHeight: 100, fontSize: 14 },
+  enviarBtn: { width: 44, height: 44, borderRadius: 22, justifyContent: 'center', alignItems: 'center' },
+  enviarBtnText: { fontSize: 18, color: '#fff' },
+  bienvenida: { alignItems: 'center', paddingVertical: 40 },
+  bienvenidaIcon: { fontSize: 60, marginBottom: 20 },
+  bienvenidaTitulo: { fontSize: 20, fontWeight: 'bold' },
+  bienvenidaTexto: { textAlign: 'center', marginTop: 10, paddingHorizontal: 40, lineHeight: 20 },
 });

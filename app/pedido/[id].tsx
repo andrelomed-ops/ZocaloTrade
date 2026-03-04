@@ -1,9 +1,11 @@
-import { View, Text, StyleSheet, ScrollView, Image, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, ActivityIndicator, Platform, Image } from 'react-native';
+import { useLocalSearchParams, router } from 'expo-router';
 import { useStore } from '../../src/store/useStore';
-import { useLocalSearchParams } from 'expo-router';
+import { useState } from 'react';
+import { supabase } from '../../src/services/supabase';
 
 const STATUS_COLORS: any = {
-  pendiente: '#FFA500',
+  pendiente: '#f39c12',
   preparando: '#3498db',
   listo: '#9b59b6',
   en_camino: '#e67e22',
@@ -20,135 +22,155 @@ const STATUS_LABELS: any = {
   cancelado: 'Cancelado',
 };
 
-export default function PedidoDetalleScreen() {
-  const { id } = useLocalSearchParams();
-  const { pedidos } = useStore();
+export default function PedidoScreen() {
+  const { id } = useLocalSearchParams<{ id: string }>();
+  const { pedidos, colors, addResena, user } = useStore();
+  const [rating, setRating] = useState(0);
+  const [comentario, setComentario] = useState('');
+  const [enviandoResena, setEnviandoResena] = useState(false);
   
-  const pedido = pedidos.find((p) => p.id === id);
+  const pedido = pedidos.find(p => p.id === id);
 
   if (!pedido) {
     return (
-      <View style={styles.notFound}>
-        <Text style={styles.notFoundText}>Pedido no encontrado</Text>
+      <View style={[styles.container, { backgroundColor: colors.background, justifyContent: 'center', alignItems: 'center' }]}>
+        <Text style={{ color: colors.text }}>Pedido no encontrado</Text>
+        <TouchableOpacity onPress={() => router.back()} style={[styles.btn, { backgroundColor: colors.primary, marginTop: 20 }]}>
+          <Text style={{ color: '#fff' }}>Volver</Text>
+        </TouchableOpacity>
       </View>
     );
   }
 
-  const pasos = ['pendiente', 'preparando', 'listo', 'en_camino', 'entregado'];
-  const pasoActual = pasos.indexOf(pedido.status);
+  const handleCalificar = async () => {
+    if (rating === 0) {
+      if (Platform.OS === 'web') alert('Por favor selecciona una calificación');
+      else Alert.alert('Error', 'Por favor selecciona una calificación');
+      return;
+    }
+
+    setEnviandoResena(true);
+    try {
+      await addResena({
+        pedido_id: pedido.id,
+        cliente_id: user?.id,
+        tienda_id: pedido.tienda_id || pedido.tiendaId,
+        calificacion: rating,
+        comentario: comentario
+      });
+      if (Platform.OS === 'web') alert('¡Gracias por tu reseña!');
+      else Alert.alert('Éxito', '¡Gracias por tu reseña!');
+      setRating(0);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setEnviandoResena(false);
+    }
+  };
+
+  const handleContactarVendedor = () => {
+    router.push({
+      pathname: '/chat-soporte',
+      params: { 
+        receptorId: pedido.tienda_id || pedido.tiendaId,
+        nombreReceptor: 'Vendedor',
+        pedidoId: pedido.id
+      }
+    });
+  };
 
   return (
-    <ScrollView style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.pedidoId}>Pedido #{pedido.id.slice(-6)}</Text>
-        <View style={[styles.statusBadge, { backgroundColor: STATUS_COLORS[pedido.status] }]}>
-          <Text style={styles.statusText}>{STATUS_LABELS[pedido.status]}</Text>
+    <ScrollView style={[styles.container, { backgroundColor: colors.background }]}>
+      <View style={[styles.header, { backgroundColor: colors.primary }]}>
+        <Text style={styles.pedidoId}>Pedido #{pedido.id.slice(0, 8)}</Text>
+        <Text style={styles.pedidoDate}>{new Date(pedido.createdAt || pedido.created_at).toLocaleDateString()}</Text>
+      </View>
+
+      <View style={styles.statusContainer}>
+        <View style={[styles.statusBadge, { backgroundColor: STATUS_COLORS[pedido.status] || colors.primary }]}>
+          <Text style={styles.statusText}>{STATUS_LABELS[pedido.status]?.toUpperCase() || 'PROCESANDO'}</Text>
         </View>
       </View>
 
-      <View style={styles.trackingSection}>
-        <Text style={styles.sectionTitle}>Seguimiento</Text>
-        {pasos.map((paso, index) => (
-          <View key={paso} style={styles.trackingStep}>
-            <View style={[
-              styles.stepCircle,
-              index <= pasoActual && styles.stepActive,
-              index < pasoActual && styles.stepCompleted
-            ]}>
-              {index < pasoActual ? (
-                <Text style={styles.stepCheck}>✓</Text>
-              ) : (
-                <Text style={styles.stepNumber}>{index + 1}</Text>
-              )}
+      <View style={[styles.section, { backgroundColor: colors.card }]}>
+        <Text style={[styles.sectionTitle, { color: colors.text }]}>🛍️ Productos</Text>
+        {(pedido.productos || []).map((item: any, index: number) => (
+          <View key={index} style={[styles.productoItem, { borderBottomColor: colors.border }]}>
+            <View style={{ flex: 1 }}>
+              <Text style={{ color: colors.text, fontWeight: 'bold' }}>{item.nombre || item.producto?.nombre}</Text>
+              <Text style={{ color: colors.subtext, fontSize: 12 }}>Cantidad: {item.cantidad}</Text>
             </View>
-            <Text style={[styles.stepLabel, index <= pasoActual && styles.stepLabelActive]}>
-              {STATUS_LABELS[paso]}
-            </Text>
-            {index < pasos.length - 1 && (
-              <View style={[styles.stepLine, index < pasoActual && styles.stepLineActive]} />
-            )}
+            <Text style={{ color: colors.text }}>${(item.precio || item.producto?.precio || 0) * item.cantidad}</Text>
           </View>
         ))}
       </View>
 
-      <View style={styles.productosSection}>
-        <Text style={styles.sectionTitle}>Productos</Text>
-        {pedido.productos.map((item, index) => (
-          <View key={index} style={styles.productoCard}>
-            <Image source={{ uri: item.producto.foto }} style={styles.productoImage} />
-            <View style={styles.productoInfo}>
-              <Text style={styles.productoNombre}>{item.producto.nombre}</Text>
-              <Text style={styles.productoCantidad}>Cantidad: {item.cantidad}</Text>
-              <Text style={styles.productoPrecio}>${(item.producto.precio * item.cantidad).toFixed(2)}</Text>
-            </View>
-          </View>
-        ))}
-      </View>
-
-      <View style={styles.direccionSection}>
-        <Text style={styles.sectionTitle}>Dirección de Entrega</Text>
-        <Text style={styles.direccionText}>📍 {pedido.direccionEntrega}</Text>
-      </View>
-
-      <View style={styles.resumenSection}>
-        <Text style={styles.sectionTitle}>Resumen de Pago</Text>
-        <View style={styles.resumenRow}>
-          <Text>Subtotal</Text>
-          <Text>${(pedido.total - pedido.comision).toFixed(2)}</Text>
+      <View style={[styles.section, { backgroundColor: colors.card }]}>
+        <Text style={[styles.sectionTitle, { color: colors.text }]}>💰 Resumen</Text>
+        <View style={styles.row}>
+          <Text style={{ color: colors.subtext }}>Subtotal</Text>
+          <Text style={{ color: colors.text }}>${pedido.subtotal || pedido.total}</Text>
         </View>
-        <View style={styles.resumenRow}>
-          <Text>Comisión (10%)</Text>
-          <Text>${pedido.comision.toFixed(2)}</Text>
-        </View>
-        <View style={[styles.resumenRow, styles.totalRow]}>
-          <Text style={styles.totalLabel}>Total</Text>
-          <Text style={styles.totalValue}>${pedido.total.toFixed(2)}</Text>
+        <View style={[styles.row, { marginTop: 10, borderTopWidth: 1, borderTopColor: colors.border, paddingTop: 10 }]}>
+          <Text style={{ color: colors.text, fontWeight: 'bold' }}>Total</Text>
+          <Text style={{ color: colors.primary, fontWeight: 'bold' }}>${pedido.total}</Text>
         </View>
       </View>
 
-      {pedido.status !== 'entregado' && pedido.status !== 'cancelado' && (
-        <TouchableOpacity style={styles.cancelBtn}>
-          <Text style={styles.cancelBtnText}>Cancelar Pedido</Text>
+      <View style={[styles.section, { backgroundColor: colors.card }]}>
+        <Text style={[styles.sectionTitle, { color: colors.text }]}>📍 Entrega</Text>
+        <Text style={{ color: colors.text }}>{pedido.direccion_entrega || pedido.direccionEntrega}</Text>
+      </View>
+
+      <View style={styles.actions}>
+        <TouchableOpacity style={[styles.btn, { backgroundColor: colors.card, borderWidth: 1, borderColor: colors.primary }]} onPress={handleContactarVendedor}>
+          <Text style={{ color: colors.primary, fontWeight: 'bold' }}>💬 Contactar Vendedor</Text>
         </TouchableOpacity>
+      </View>
+
+      {pedido.status === 'entregado' && (
+        <View style={[styles.section, { backgroundColor: colors.card }]}>
+          <Text style={[styles.sectionTitle, { color: colors.text }]}>⭐ Calificar Pedido</Text>
+          <View style={styles.starsRow}>
+            {[1, 2, 3, 4, 5].map(s => (
+              <TouchableOpacity key={s} onPress={() => setRating(s)}>
+                <Text style={{ fontSize: 30 }}>{rating >= s ? '⭐' : '☆'}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+          <TouchableOpacity 
+            style={[styles.btn, { backgroundColor: colors.primary, marginTop: 15 }]}
+            onPress={handleCalificar}
+            disabled={enviandoResena}
+          >
+            {enviandoResena ? <ActivityIndicator color="#fff" /> : <Text style={{ color: '#fff', fontWeight: 'bold' }}>Enviar Reseña</Text>}
+          </TouchableOpacity>
+        </View>
       )}
+
+      <TouchableOpacity 
+        style={[styles.btn, { backgroundColor: colors.primary, margin: 15 }]}
+        onPress={() => router.push('/(tabs)')}
+      >
+        <Text style={{ color: '#fff', fontWeight: 'bold' }}>Volver al Inicio</Text>
+      </TouchableOpacity>
     </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f5f5f5' },
-  notFound: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  notFoundText: { fontSize: 18, color: '#666' },
-  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#fff', padding: 20 },
-  pedidoId: { fontSize: 20, fontWeight: 'bold' },
-  statusBadge: { paddingHorizontal: 15, paddingVertical: 6, borderRadius: 15 },
-  statusText: { color: '#fff', fontWeight: 'bold' },
-  trackingSection: { backgroundColor: '#fff', margin: 15, padding: 20, borderRadius: 12 },
-  sectionTitle: { fontSize: 18, fontWeight: 'bold', marginBottom: 15 },
-  trackingStep: { flexDirection: 'row', alignItems: 'center', marginBottom: 10 },
-  stepCircle: { width: 30, height: 30, borderRadius: 15, backgroundColor: '#ddd', justifyContent: 'center', alignItems: 'center' },
-  stepActive: { backgroundColor: '#FF6B35' },
-  stepCompleted: { backgroundColor: '#27ae60' },
-  stepCheck: { color: '#fff', fontWeight: 'bold' },
-  stepNumber: { color: '#fff', fontWeight: 'bold', fontSize: 12 },
-  stepLabel: { marginLeft: 10, color: '#999', flex: 1 },
-  stepLabelActive: { color: '#333', fontWeight: '600' },
-  stepLine: { position: 'absolute', left: 14, top: 35, width: 2, height: 20, backgroundColor: '#ddd' },
-  stepLineActive: { backgroundColor: '#FF6B35' },
-  productosSection: { backgroundColor: '#fff', marginHorizontal: 15, padding: 20, borderRadius: 12, marginBottom: 15 },
-  productoCard: { flexDirection: 'row', marginBottom: 15 },
-  productoImage: { width: 60, height: 60, borderRadius: 8 },
-  productoInfo: { flex: 1, marginLeft: 15 },
-  productoNombre: { fontWeight: 'bold' },
-  productoCantidad: { color: '#666', fontSize: 12 },
-  productoPrecio: { color: '#FF6B35', fontWeight: 'bold', marginTop: 5 },
-  direccionSection: { backgroundColor: '#fff', marginHorizontal: 15, padding: 20, borderRadius: 12, marginBottom: 15 },
-  direccionText: { fontSize: 16 },
-  resumenSection: { backgroundColor: '#fff', marginHorizontal: 15, padding: 20, borderRadius: 12, marginBottom: 15 },
-  resumenRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 10 },
-  totalRow: { borderTopWidth: 1, borderColor: '#eee', paddingTop: 10, marginTop: 10 },
-  totalLabel: { fontSize: 18, fontWeight: 'bold' },
-  totalValue: { fontSize: 18, fontWeight: 'bold', color: '#FF6B35' },
-  cancelBtn: { backgroundColor: '#fff', margin: 15, padding: 15, borderRadius: 10, alignItems: 'center', borderWidth: 1, borderColor: '#ff4444' },
-  cancelBtnText: { color: '#ff4444', fontWeight: 'bold' },
+  container: { flex: 1 },
+  header: { padding: 30, alignItems: 'center' },
+  pedidoId: { fontSize: 22, fontWeight: 'bold', color: '#fff' },
+  pedidoDate: { fontSize: 14, color: '#fff', opacity: 0.8, marginTop: 5 },
+  statusContainer: { alignItems: 'center', marginTop: -15, marginBottom: 10 },
+  statusBadge: { paddingHorizontal: 20, paddingVertical: 8, borderRadius: 20 },
+  statusText: { color: '#fff', fontWeight: 'bold', fontSize: 14 },
+  section: { margin: 15, padding: 15, borderRadius: 12 },
+  sectionTitle: { fontSize: 16, fontWeight: 'bold', marginBottom: 15 },
+  productoItem: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 10, borderBottomWidth: 1 },
+  row: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 5 },
+  btn: { padding: 15, borderRadius: 10, alignItems: 'center' },
+  starsRow: { flexDirection: 'row', justifyContent: 'center', gap: 10 },
+  actions: { paddingHorizontal: 15 },
 });
