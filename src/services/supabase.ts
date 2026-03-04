@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
+import { Platform } from 'react-native';
 
 // Usamos EXPO_PUBLIC_ que es el estándar de Expo para asegurar que se inyecten en el cliente web
 const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://bctwviuitgqyolxabwxq.supabase.co';
@@ -22,5 +23,24 @@ export const TABLES: any = {
 export const BUCKET_NAME = 'productos';
 
 export const uploadImage = async (uri: string) => {
-  return null; // Mock for now
+  try {
+    if (Platform.OS === 'web') {
+      // En web, convertimos la URI a Blob
+      const response = await fetch(uri);
+      const blob = await response.blob();
+      const fileName = `prod_${Date.now()}.jpg`;
+      
+      const { data, error } = await supabase.storage
+        .from(BUCKET_NAME)
+        .upload(fileName, blob);
+        
+      if (error) throw error;
+      const { data: { publicUrl } } = supabase.storage.from(BUCKET_NAME).getPublicUrl(fileName);
+      return publicUrl;
+    }
+    return uri; // En móvil requiere una lógica de base64/formdata distinta
+  } catch (e) {
+    console.error('Upload error:', e);
+    return null;
+  }
 };
