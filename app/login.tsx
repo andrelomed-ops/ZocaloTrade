@@ -4,6 +4,9 @@ import { useState, useEffect } from 'react';
 import { supabase } from '../src/services/supabase';
 import { useStore } from '../src/store/useStore';
 import * as WebBrowser from 'expo-web-browser';
+import * as Linking from 'expo-linking';
+
+WebBrowser.maybeCompleteAuthSession();
 
 export default function LoginScreen() {
   const { setUser, user } = useStore();
@@ -21,48 +24,29 @@ export default function LoginScreen() {
   }, [user]);
 
   useEffect(() => {
-    if (params.access_token) {
-      handleOAuthCallback();
-    }
-  }, [params]);
+    checkSession();
+  }, []);
 
-  async function handleOAuthCallback() {
-    setLoading(true);
+  async function checkSession() {
     try {
-      const accessToken = params.access_token as string;
-      const refreshToken = params.refresh_token as string;
-      
-      if (accessToken && refreshToken) {
-        const { data, error } = await supabase.auth.setSession({
-          access_token: accessToken,
-          refresh_token: refreshToken,
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session?.user) {
+        const { data: perfil } = await supabase
+          .from('perfiles')
+          .select('*')
+          .eq('id', session.user.id)
+          .single();
+
+        setUser({
+          id: session.user.id,
+          nombre: perfil?.nombre || session.user.email?.split('@')[0] || 'Usuario',
+          email: session.user.email,
         });
-
-        if (error) {
-          Alert.alert('Error', error.message);
-          return;
-        }
-
-        if (data.session) {
-          const { data: perfil } = await supabase
-            .from('perfiles')
-            .select('*')
-            .eq('id', data.user.id)
-            .single();
-
-          setUser({
-            id: data.user.id,
-            nombre: perfil?.nombre || data.user.email?.split('@')[0] || 'Usuario',
-            email: data.user.email,
-          });
-          
-          router.replace('/(tabs)');
-        }
+        router.replace('/(tabs)');
       }
-    } catch (error: any) {
-      Alert.alert('Error', error.message || 'Error al iniciar sesión');
+    } catch (e) {
+      console.log('Session check error:', e);
     }
-    setLoading(false);
   }
 
   const handleSubmit = async () => {
@@ -154,10 +138,12 @@ export default function LoginScreen() {
     try {
       setLoading(true);
       
+      const redirectUrl = Linking.createURL('auth/callback');
+      
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: 'https://zocalotrade.vercel.app/api/auth/callback/google',
+          redirectTo: redirectUrl,
           skipBrowserRedirect: true,
         },
       });
@@ -167,12 +153,13 @@ export default function LoginScreen() {
       if (data?.url) {
         const result = await WebBrowser.openAuthSessionAsync(
           data.url,
-          'https://zocalotrade.vercel.app/api/auth/callback/google'
+          redirectUrl
         );
         
         if (result.type === 'success') {
           const url = result.url;
-          const params = new URL(url).searchParams;
+          const urlObj = new URL(url);
+          const params = new URLSearchParams(urlObj.hash.substring(1));
           const accessToken = params.get('access_token');
           const refreshToken = params.get('refresh_token');
           
@@ -182,7 +169,12 @@ export default function LoginScreen() {
               refresh_token: refreshToken,
             });
             
-            if (!sessionError && sessionData.session) {
+            if (sessionError) {
+              Alert.alert('Error', sessionError.message);
+              return;
+            }
+
+            if (sessionData?.session?.user) {
               const { data: perfil } = await supabase
                 .from('perfiles')
                 .select('*')
@@ -211,10 +203,12 @@ export default function LoginScreen() {
     try {
       setLoading(true);
       
+      const redirectUrl = Linking.createURL('auth/callback');
+      
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'facebook',
         options: {
-          redirectTo: 'https://zocalotrade.vercel.app/api/auth/callback/google',
+          redirectTo: redirectUrl,
           skipBrowserRedirect: true,
         },
       });
@@ -224,7 +218,7 @@ export default function LoginScreen() {
       if (data?.url) {
         const result = await WebBrowser.openAuthSessionAsync(
           data.url,
-          'https://zocalotrade.vercel.app/api/auth/callback/google'
+          redirectUrl
         );
         
         if (result.type === 'success') {
@@ -247,7 +241,7 @@ export default function LoginScreen() {
     try {
       setLoading(true);
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: 'https://zocalotrade.vercel.app/',
+        redirectTo: Linking.createURL('reset-password'),
       });
       
       if (error) throw error;
@@ -260,7 +254,7 @@ export default function LoginScreen() {
     }
   };
 
-  if (loading && !params.access_token) {
+  if (loading && !email && !password) {
     return (
       <View style={[styles.container, styles.loadingContainer]}>
         <ActivityIndicator size="large" color="#FF6B35" />

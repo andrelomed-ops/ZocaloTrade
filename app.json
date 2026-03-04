@@ -7,7 +7,7 @@
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
-"newArchEnabled": false,
+    "newArchEnabled": false,
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
@@ -19,14 +19,6 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.zocalotrade.app"
-    },
-    "android": {
-      "adaptiveIcon": {
-        "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#FF6B35"
-      },
-      "edgeToEdgeEnabled": true,
-      "package": "com.zocalotrade.app"
     },
     "web": {
       "favicon": "./assets/favicon.png",
