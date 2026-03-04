@@ -10,53 +10,35 @@ export interface Producto {
   fotos: string[];
   tiendaId: string;
   disponible: boolean;
-  stock?: number;
 }
 
 export interface Tienda {
   id: string;
   nombre: string;
-  descripcion: string;
-  direccion: string;
-  latitud: number;
-  longitud: number;
   fotoPerfil: string;
   rating: number;
   categoria: string;
+  descripcion?: string;
+  latitud?: number;
+  longitud?: number;
 }
 
 export interface User {
   id: string;
   nombre: string;
   email: string;
-  telefono?: string;
   fotoPerfil?: string;
-}
-
-export interface Pedido {
-  id: string;
-  cliente_id: string;
-  tienda_id: string;
-  productos: any[];
-  subtotal: number;
-  total: number;
-  direccion_entrega: string;
-  status: string;
-  clinckargo_id?: string | null;
-  created_at: string;
-  comision?: number;
-  metodo_pago?: string;
-  etapas_seguimiento?: any[];
 }
 
 export const CATEGORIAS = ['Todos', 'Comida', 'Bebidas', 'Artesanía', 'Ropa', 'Accesorios'];
 
 export const MOCK_PRODUCTOS: Producto[] = [
-  { id: '1', nombre: 'Producto Tradicional', descripcion: 'Hecho a mano', precio: 150, categoria: 'Artesanía', fotos: ['https://picsum.photos/400/400'], tiendaId: 't1', disponible: true },
+  { id: '1', nombre: 'Tamal de Mole', descripcion: 'Delicioso tamal tradicional', precio: 45, categoria: 'Comida', fotos: ['https://picsum.photos/400/400?random=1'], tiendaId: 't1', disponible: true },
+  { id: '2', nombre: 'Pulsera Artesanal', descripcion: 'Hecha a mano', precio: 80, categoria: 'Artesanía', fotos: ['https://picsum.photos/400/400?random=2'], tiendaId: 't1', disponible: true },
 ];
 
 export const MOCK_TIENDAS: Tienda[] = [
-  { id: 't1', nombre: 'Tienda Zocalo', descripcion: 'Lo mejor del centro', direccion: 'Zócalo, CDMX', latitud: 19.4326, longitud: -99.1332, fotoPerfil: 'https://picsum.photos/100/100', rating: 5.0, categoria: 'General' },
+  { id: 't1', nombre: 'Tienda Zócalo', fotoPerfil: 'https://picsum.photos/100/100?random=10', rating: 4.9, categoria: 'General' },
 ];
 
 interface AppState {
@@ -65,7 +47,7 @@ interface AppState {
   productos: Producto[];
   tiendas: Tienda[];
   carrito: any[];
-  pedidos: Pedido[];
+  pedidos: any[];
   favoritos: string[];
   notificaciones: any[];
   initialized: boolean;
@@ -132,45 +114,33 @@ export const useStore = create<AppState>((set, get) => ({
   setUserLocation: (userLocation) => set({ userLocation }),
   
   initialize: async () => {
+    if (get().initialized) return;
     try {
-      const { data: catData } = await supabase.from(TABLES.PRODUCTOS).select('categoria').not('categoria', 'is', null);
-      
       const { data: p } = await supabase.from(TABLES.PRODUCTOS).select('*').eq('activo', true);
       const { data: t } = await supabase.from(TABLES.TIENDAS).select('*').eq('activa', true);
       
-      const formattedProducts = (p || []).map((item: any) => ({
-        ...item,
-        tiendaId: item.tienda_id,
-        fotos: item.fotos || ['https://picsum.photos/400/400'],
-        disponible: item.activo
-      }));
-
       set({
-        productos: formattedProducts.length > 0 ? formattedProducts : MOCK_PRODUCTOS,
-        tiendas: t || MOCK_TIENDAS,
+        productos: (p && p.length > 0) ? p.map((item: any) => ({ ...item, tiendaId: item.tienda_id, fotos: item.fotos || ['https://picsum.photos/400/400'], disponible: item.activo })) : MOCK_PRODUCTOS,
+        tiendas: (t && t.length > 0) ? t : MOCK_TIENDAS,
         initialized: true,
       });
     } catch (e) {
-      console.error('Store Init Error:', e);
       set({ productos: MOCK_PRODUCTOS, tiendas: MOCK_TIENDAS, initialized: true });
     }
   },
 
   loadUserExtras: async (userId: string) => {
     try {
-      const { data: profile } = await supabase.from('perfiles').select('favoritos, carrito').eq('id', userId).maybeSingle();
+      const { data: profile } = await supabase.from('perfiles').select('favoritos').eq('id', userId).maybeSingle();
       if (profile?.favoritos) set({ favoritos: profile.favoritos });
-      if (profile?.carrito) set({ carrito: profile.carrito });
-
+      
       const { data: notifs } = await supabase.from('notificaciones').select('*').eq('usuario_id', userId).order('created_at', { ascending: false });
       if (notifs) set({ notificaciones: notifs });
     } catch (e) {}
   },
 
   toggleFavorito: (id) => set((s) => ({
-    favoritos: (s.favoritos || []).includes(id) 
-      ? s.favoritos.filter(x => x !== id) 
-      : [...(s.favoritos || []), id]
+    favoritos: (s.favoritos || []).includes(id) ? s.favoritos.filter(x => x !== id) : [...(s.favoritos || []), id]
   })),
 
   addToCarrito: (producto, cantidad = 1) => set((s) => {
@@ -185,15 +155,15 @@ export const useStore = create<AppState>((set, get) => ({
     return { carrito: [...s.carrito, { producto, cantidad }] };
   }),
 
-  removeFromCarrito: (productoId) => set((s) => ({
-    carrito: s.carrito.filter(item => item.producto.id !== productoId)
+  removeFromCarrito: (id) => set((s) => ({
+    carrito: s.carrito.filter(item => item.producto.id !== id)
   })),
 
   clearCarrito: () => set({ carrito: [] }),
 
   addPedido: async (pedido: any) => {
     try {
-      const { data, error } = await supabase.from(TABLES.PEDIDOS).insert(pedido).select().single();
+      const { data } = await supabase.from(TABLES.PEDIDOS).insert(pedido).select().single();
       if (data) set((s) => ({ pedidos: [data, ...s.pedidos] }));
     } catch (e) {}
   },
