@@ -7,13 +7,13 @@ import { useStore } from '../src/store/useStore';
 export default function RootLayout() {
   const { setUser } = useStore();
 
-  // Verificar sesión al cargar la app
+  // Solo verificar sesión si hay un usuario guardado
   useEffect(() => {
     const checkSession = async () => {
       try {
         const { data: { session } } = await supabase.auth.getSession();
         
-        if (session) {
+        if (session?.user) {
           const email = session.user.email || '';
           const nombre = session.user.user_metadata?.name || email.split('@')[0] || 'Usuario';
           
@@ -24,29 +24,11 @@ export default function RootLayout() {
           });
         }
       } catch (error) {
-        console.error('Session check error:', error);
+        console.log('Session check error:', error);
       }
     };
     
     checkSession();
-    
-    // Escuchar cambios en auth
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      if (session) {
-        const email = session.user.email || '';
-        const nombre = session.user.user_metadata?.name || email.split('@')[0] || 'Usuario';
-        
-        setUser({
-          id: session.user.id,
-          nombre: nombre,
-          email: email,
-        });
-      } else {
-        setUser(null);
-      }
-    });
-    
-    return () => subscription.unsubscribe();
   }, []);
 
   return (
