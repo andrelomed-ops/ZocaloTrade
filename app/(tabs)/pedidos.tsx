@@ -1,6 +1,7 @@
-import { View, Text, FlatList, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, FlatList, TouchableOpacity, StyleSheet, ActivityIndicator, RefreshControl } from 'react-native';
 import { useStore } from '../../src/store/useStore';
 import { router } from 'expo-router';
+import { useState, useEffect, useCallback } from 'react';
 
 const STATUS_COLORS: any = {
   pendiente: '#FFA500',
@@ -21,96 +22,93 @@ const STATUS_LABELS: any = {
 };
 
 export default function PedidosScreen() {
-  const { pedidos } = useStore();
+  const { pedidos, user, loadPedidos, colors } = useStore();
+  const [refreshing, setRefreshing] = useState(false);
+  const [loading, setLoading] = useState(true);
 
-  const sortedPedidos = [...pedidos].sort((a, b) => 
-    new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-  );
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    if (user?.id) await loadPedidos(user.id);
+    setRefreshing(false);
+  }, [user, loadPedidos]);
 
-  if (pedidos.length === 0) {
+  useEffect(() => {
+    const init = async () => {
+      if (user?.id) await loadPedidos(user.id);
+      setLoading(false);
+    };
+    init();
+  }, [user]);
+
+  if (loading) {
     return (
-      <View style={styles.emptyContainer}>
-        <Text style={styles.emptyIcon}>📦</Text>
-        <Text style={styles.emptyText}>No tienes pedidos</Text>
-        <Text style={styles.emptySubtext}>Haz tu primer pedido</Text>
+      <View style={[styles.container, { backgroundColor: colors.background, justifyContent: 'center' }]}>
+        <ActivityIndicator color={colors.primary} size="large" />
+      </View>
+    );
+  }
+
+  if (!user) {
+    return (
+      <View style={[styles.container, { backgroundColor: colors.background, justifyContent: 'center', alignItems: 'center', padding: 20 }]}>
+        <Text style={{ color: colors.text, fontSize: 18, fontWeight: 'bold' }}>Inicia sesión para ver tus pedidos</Text>
+        <TouchableOpacity 
+          style={[styles.btn, { backgroundColor: colors.primary, marginTop: 20 }]}
+          onPress={() => router.push('/login')}
+        >
+          <Text style={{ color: '#fff', fontWeight: 'bold' }}>Ir al Login</Text>
+        </TouchableOpacity>
       </View>
     );
   }
 
   return (
-    <FlatList
-      data={sortedPedidos}
-      keyExtractor={(item) => item.id}
-      contentContainerStyle={styles.list}
-      renderItem={({ item }) => (
-        <TouchableOpacity style={styles.pedidoCard} onPress={() => router.push(`/pedido/${item.id}`)}>
-          <View style={styles.pedidoHeader}>
-            <Text style={styles.pedidoId}>Pedido #{item.id.slice(-6)}</Text>
-            <View style={[styles.statusBadge, { backgroundColor: STATUS_COLORS[item.status] }]}>
-              <Text style={styles.statusText}>{STATUS_LABELS[item.status]}</Text>
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
+      <FlatList
+        data={pedidos}
+        keyExtractor={(item) => item.id}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[colors.primary]} />
+        }
+        contentContainerStyle={{ padding: 15 }}
+        renderItem={({ item }) => (
+          <TouchableOpacity 
+            style={[styles.orderCard, { backgroundColor: colors.card }]}
+            onPress={() => router.push(`/pedido/${item.id}`)}
+          >
+            <View style={styles.orderHeader}>
+              <Text style={{ color: colors.text, fontWeight: 'bold' }}>Pedido #{item.id.slice(0, 8)}</Text>
+              <View style={[styles.statusBadge, { backgroundColor: STATUS_COLORS[item.status] || '#999' }]}>
+                <Text style={styles.statusText}>{STATUS_LABELS[item.status]?.toUpperCase() || item.status.toUpperCase()}</Text>
+              </View>
             </View>
-          </View>
-
-          <Text style={styles.pedidoFecha}>
-            {new Date(item.createdAt).toLocaleDateString('es-MX', {
-              day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit'
-            })}
-          </Text>
-
-          <View style={styles.productosPreview}>
-            {item.productos.slice(0, 2).map((p, i) => (
-              <Text key={i} style={styles.productoText} numberOfLines={1}>
-                • {p.producto.nombre} x{p.cantidad}
-              </Text>
-            ))}
-            {item.productos.length > 2 && (
-              <Text style={styles.masText}>+{item.productos.length - 2} más</Text>
-            )}
-          </View>
-
-          <View style={styles.pedidoFooter}>
-            <View>
-              <Text style={styles.totalLabel}>Total</Text>
-              <Text style={styles.totalValue}>
-                ${((item.subtotal || item.total) + (item.comision || 0)).toFixed(2)}
-              </Text>
+            
+            <View style={[styles.divider, { backgroundColor: colors.border }]} />
+            
+            <View style={styles.orderFooter}>
+              <Text style={{ color: colors.subtext }}>{new Date(item.createdAt || item.created_at).toLocaleDateString()}</Text>
+              <Text style={{ color: colors.primary, fontWeight: 'bold', fontSize: 18 }}>${item.total}</Text>
             </View>
-            <TouchableOpacity 
-              style={styles.seguimientoBtn}
-              onPress={() => router.push(`/seguimiento?id=${item.id}`)}
-            >
-              <Text style={styles.seguimientoBtnText}>📍 Rastrear</Text>
-            </TouchableOpacity>
+          </TouchableOpacity>
+        )}
+        ListEmptyComponent={
+          <View style={{ alignItems: 'center', marginTop: 100 }}>
+            <Text style={{ fontSize: 60 }}>📦</Text>
+            <Text style={{ color: colors.subtext, marginTop: 10 }}>Aún no tienes pedidos</Text>
           </View>
-        </TouchableOpacity>
-      )}
-    />
+        }
+      />
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  list: { padding: 15 },
-  emptyContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#f5f5f5' },
-  emptyIcon: { fontSize: 80 },
-  emptyText: { fontSize: 20, fontWeight: 'bold', color: '#333', marginTop: 20 },
-  emptySubtext: { fontSize: 16, color: '#666', marginTop: 5 },
-  pedidoCard: { backgroundColor: '#fff', borderRadius: 12, padding: 15, marginBottom: 15, elevation: 2 },
-  pedidoHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  pedidoId: { fontSize: 16, fontWeight: 'bold' },
-  statusBadge: { paddingHorizontal: 12, paddingVertical: 4, borderRadius: 12 },
-  statusText: { color: '#fff', fontSize: 12, fontWeight: 'bold' },
-  pedidoFecha: { color: '#666', fontSize: 12, marginTop: 5 },
-  productosPreview: { marginTop: 10 },
-  productoText: { color: '#333', fontSize: 14 },
-  masText: { color: '#999', fontSize: 12, marginTop: 2 },
-  pedidoFooter: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 15, paddingTop: 10, borderTopWidth: 1, borderColor: '#eee' },
-  totalLabel: { fontSize: 14, color: '#666' },
-  totalValue: { fontSize: 18, fontWeight: 'bold', color: '#FF6B35' },
-  seguimientoBtn: {
-    backgroundColor: '#FF6B35',
-    paddingHorizontal: 15,
-    paddingVertical: 8,
-    borderRadius: 20,
-  },
-  seguimientoBtnText: { color: '#fff', fontWeight: '600', fontSize: 13 },
+  container: { flex: 1 },
+  btn: { padding: 15, borderRadius: 10, width: 200, alignItems: 'center' },
+  orderCard: { borderRadius: 12, padding: 15, marginBottom: 15, elevation: 2 },
+  orderHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  statusBadge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12 },
+  statusText: { color: '#fff', fontSize: 10, fontWeight: 'bold' },
+  divider: { height: 1, marginVertical: 12 },
+  orderFooter: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
 });
