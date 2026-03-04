@@ -28,22 +28,8 @@ export default function LoginScreen() {
   }, []);
 
   async function checkSession() {
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session?.user) {
-        const email = session.user.email || '';
-        const nombre = email.split('@')[0];
-        
-        setUser({
-          id: session.user.id,
-          nombre: nombre,
-          email: email,
-        });
-        router.replace('/(tabs)');
-      }
-    } catch (e) {
-      console.log('Session check error:', e);
-    }
+    // Skip session check for now - will be handled after OAuth
+    console.log('checkSession called');
   }
 
   async function upsertProfile(userId: string, userEmail: string, userNombre: string, avatarUrl?: string) {
