@@ -14,16 +14,13 @@ export default function RootLayout() {
         const { data: { session } } = await supabase.auth.getSession();
         
         if (session) {
-          const { data: perfil } = await supabase
-            .from('perfiles')
-            .select('*')
-            .eq('id', session.user.id)
-            .single();
+          const email = session.user.email || '';
+          const nombre = session.user.user_metadata?.name || email.split('@')[0] || 'Usuario';
           
           setUser({
             id: session.user.id,
-            nombre: perfil?.nombre || session.user.email?.split('@')[0] || 'Usuario',
-            email: session.user.email,
+            nombre: nombre,
+            email: email,
           });
         }
       } catch (error) {
@@ -36,16 +33,13 @@ export default function RootLayout() {
     // Escuchar cambios en auth
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (session) {
-        const { data: perfil } = await supabase
-          .from('perfiles')
-          .select('*')
-          .eq('id', session.user.id)
-          .single();
+        const email = session.user.email || '';
+        const nombre = session.user.user_metadata?.name || email.split('@')[0] || 'Usuario';
         
         setUser({
           id: session.user.id,
-          nombre: perfil?.nombre || session.user.email?.split('@')[0] || 'Usuario',
-          email: session.user.email,
+          nombre: nombre,
+          email: email,
         });
       } else {
         setUser(null);
