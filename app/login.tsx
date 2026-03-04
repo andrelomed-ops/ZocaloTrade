@@ -135,64 +135,39 @@ export default function LoginScreen() {
     try {
       setLoading(true);
       
-      const redirectUrl = Linking.createURL('auth/callback');
+      // Use a simple redirect for web
+      const redirectUrl = 'https://zocalotrade.vercel.app';
       
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
           redirectTo: redirectUrl,
-          skipBrowserRedirect: true,
         },
       });
       
       if (error) throw error;
       
-      if (data?.url) {
-        const result = await WebBrowser.openAuthSessionAsync(
-          data.url,
-          redirectUrl
-        );
-        
-        if (result.type === 'success') {
-          const url = result.url;
-          const urlObj = new URL(url);
-          const hashParams = new URLSearchParams(urlObj.hash.substring(1));
-          const accessToken = hashParams.get('access_token');
-          const refreshToken = hashParams.get('refresh_token');
+      // For web, the redirect happens automatically
+      // Just wait a bit and check session
+      setTimeout(async () => {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session?.user) {
+          const user = session.user;
+          const userEmail = user.email || '';
+          const userNombre = user.user_metadata?.full_name || userEmail.split('@')[0];
           
-          if (accessToken && refreshToken) {
-            const { data: sessionData, error: sessionError } = await supabase.auth.setSession({
-              access_token: accessToken,
-              refresh_token: refreshToken,
-            });
-            
-            if (sessionError) {
-              Alert.alert('Error', sessionError.message);
-              return;
-            }
-
-            if (sessionData?.session?.user) {
-              const user = sessionData.user;
-              const userEmail = user.email || '';
-              const userNombre = user.user_metadata?.name || userEmail.split('@')[0];
-              const avatarUrl = user.user_metadata?.avatar_url;
-
-              await upsertProfile(user.id, userEmail, userNombre, avatarUrl);
-
-              setUser({
-                id: user.id,
-                nombre: userNombre,
-                email: userEmail,
-              });
-              
-              router.replace('/(tabs)');
-            }
-          }
+          setUser({
+            id: user.id,
+            nombre: userNombre,
+            email: userEmail,
+          });
+          
+          router.replace('/(tabs)');
         }
-      }
+      }, 2000);
+      
     } catch (error: any) {
       Alert.alert('Error', 'No se pudo iniciar sesión con Google: ' + error.message);
-    } finally {
       setLoading(false);
     }
   };
