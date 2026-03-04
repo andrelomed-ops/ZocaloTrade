@@ -116,20 +116,24 @@ export default function LoginScreen() {
     try {
       setLoading(true);
       
+      const redirectUrl = Platform.OS === 'web' 
+        ? window.location.origin 
+        : Linking.createURL('auth/callback');
+      
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: 'https://zocalotrade.vercel.app/',
-          skipBrowserRedirect: true,
+          redirectTo: redirectUrl,
+          skipBrowserRedirect: Platform.OS !== 'web',
         },
       });
       
       if (error) throw error;
       
-      if (data?.url) {
+      if (Platform.OS !== 'web' && data?.url) {
         const result = await WebBrowser.openAuthSessionAsync(
           data.url,
-          'https://zocalotrade.vercel.app/'
+          redirectUrl
         );
         
         if (result.type === 'success') {

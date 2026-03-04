@@ -1,4 +1,4 @@
-import { View, Text, TouchableOpacity, StyleSheet, Switch, ScrollView, Alert, Linking } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Switch, ScrollView, Alert, Linking, Platform } from 'react-native';
 import { useState } from 'react';
 import { router } from 'expo-router';
 import { useStore } from '../src/store/useStore';
@@ -13,6 +13,16 @@ export default function ConfiguracionScreen() {
   const tema = darkMode ? 'oscuro' : 'claro';
 
   const handleCerrarSesion = async () => {
+    if (Platform.OS === 'web') {
+      const confirmLogout = window.confirm('¿Estás seguro de que quieres cerrar sesión?');
+      if (confirmLogout) {
+        await supabase.auth.signOut();
+        setUser(null);
+        router.replace('/login');
+      }
+      return;
+    }
+
     Alert.alert(
       'Cerrar Sesión',
       '¿Estás seguro de que quieres cerrar sesión?',
@@ -21,7 +31,7 @@ export default function ConfiguracionScreen() {
         { text: 'Cerrar Sesión', style: 'destructive', onPress: async () => {
           await supabase.auth.signOut();
           setUser(null);
-          router.replace('/');
+          router.replace('/login');
         }},
       ]
     );

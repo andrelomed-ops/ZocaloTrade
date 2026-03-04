@@ -1,4 +1,4 @@
-import { View, Text, TouchableOpacity, StyleSheet, Switch, Alert, ScrollView } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Switch, Alert, ScrollView, Platform } from 'react-native';
 import { useStore } from '../../src/store/useStore';
 import { router } from 'expo-router';
 import { useState } from 'react';
@@ -89,6 +89,16 @@ export default function PerfilScreen() {
   const totalGastado = pedidos.reduce((sum, p) => sum + p.total, 0);
 
   const handleLogout = async () => {
+    if (Platform.OS === 'web') {
+      const confirmLogout = window.confirm('¿Estás seguro de que quieres cerrar sesión?');
+      if (confirmLogout) {
+        await supabase.auth.signOut();
+        setUser(null);
+        router.replace('/login');
+      }
+      return;
+    }
+
     Alert.alert(
       'Cerrar Sesión',
       '¿Estás seguro de que quieres cerrar sesión?',
@@ -100,7 +110,7 @@ export default function PerfilScreen() {
           onPress: async () => {
             await supabase.auth.signOut();
             setUser(null);
-            router.replace('/');
+            router.replace('/login');
           }
         },
       ]

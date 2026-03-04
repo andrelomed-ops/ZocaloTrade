@@ -179,8 +179,6 @@ export const useStore = create<AppState>((set, get) => ({
     }
   },
   
-  setDarkMode: (darkMode) => set({ darkMode }),
-  
   addProducto: (producto) => set((state) => ({
     productos: [...state.productos, producto]
   })),

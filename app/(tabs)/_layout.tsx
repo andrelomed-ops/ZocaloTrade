@@ -5,11 +5,11 @@ import { useStore } from '../../src/store/useStore';
 
 export default function TabsLayout() {
   const insets = useSafeAreaInsets();
-  const { carrito, favoritos, pedidos } = useStore();
+  const { carrito = [], favoritos = [], pedidos = [] } = useStore();
   
-  const cartCount = carrito.reduce((sum, item) => sum + item.cantidad, 0);
-  const favoritosCount = favoritos.length;
-  const pedidosCount = pedidos.filter(p => p.status !== 'entregado' && p.status !== 'cancelado').length;
+  const cartCount = (carrito || []).reduce((sum, item) => sum + (item.cantidad || 0), 0);
+  const favoritosCount = (favoritos || []).length;
+  const pedidosCount = (pedidos || []).filter(p => p && p.status !== 'entregado' && p.status !== 'cancelado').length;
   
   return (
     <Tabs
