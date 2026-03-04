@@ -1,9 +1,15 @@
 import { Tabs } from 'expo-router';
 import { View, Text, StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useStore } from '../../src/store/useStore';
 
 export default function TabsLayout() {
   const insets = useSafeAreaInsets();
+  const { carrito, favoritos, pedidos } = useStore();
+  
+  const cartCount = carrito.reduce((sum, item) => sum + item.cantidad, 0);
+  const favoritosCount = favoritos.length;
+  const pedidosCount = pedidos.filter(p => p.status !== 'entregado' && p.status !== 'cancelado').length;
   
   return (
     <Tabs
@@ -42,6 +48,7 @@ export default function TabsLayout() {
         options={{
           title: 'Carrito',
           tabBarIcon: ({ color }) => <TabIcon name="🛒" color={color} />,
+          tabBarBadge: cartCount > 0 ? cartCount : undefined,
         }}
       />
       <Tabs.Screen
@@ -49,6 +56,7 @@ export default function TabsLayout() {
         options={{
           title: 'Pedidos',
           tabBarIcon: ({ color }) => <TabIcon name="📦" color={color} />,
+          tabBarBadge: pedidosCount > 0 ? pedidosCount : undefined,
         }}
       />
       <Tabs.Screen
@@ -56,6 +64,7 @@ export default function TabsLayout() {
         options={{
           title: 'Favoritos',
           tabBarIcon: ({ color }) => <TabIcon name="❤️" color={color} />,
+          tabBarBadge: favoritosCount > 0 ? favoritosCount : undefined,
         }}
       />
       <Tabs.Screen

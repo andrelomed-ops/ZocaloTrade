@@ -90,10 +90,12 @@ interface AppState {
   pedidos: Pedido[];
   favoritos: string[];
   initialized: boolean;
+  darkMode: boolean;
   
   initialize: () => void;
   setUser: (user: User | null) => void;
   setRol: (rol: 'cliente' | 'vendedor' | 'repartidor' | null) => void;
+  setDarkMode: (darkMode: boolean) => void;
   addProducto: (producto: Producto) => void;
   updateProducto: (productoId: string, updates: Partial<Producto>) => void;
   deleteProducto: (productoId: string) => void;
@@ -115,6 +117,11 @@ export const useStore = create<AppState>((set, get) => ({
   pedidos: [],
   favoritos: [],
   initialized: false,
+  darkMode: false,
+  
+  setUser: (user) => set({ user }),
+  setRol: (rol) => set({ rol }),
+  setDarkMode: (darkMode) => set({ darkMode }),
   
   initialize: async () => {
     try {
@@ -172,8 +179,7 @@ export const useStore = create<AppState>((set, get) => ({
     }
   },
   
-  setUser: (user) => set({ user }),
-  setRol: (rol) => set({ rol }),
+  setDarkMode: (darkMode) => set({ darkMode }),
   
   addProducto: (producto) => set((state) => ({
     productos: [...state.productos, producto]

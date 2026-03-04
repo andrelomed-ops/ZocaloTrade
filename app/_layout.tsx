@@ -5,9 +5,9 @@ import { supabase } from '../src/services/supabase';
 import { useStore } from '../src/store/useStore';
 
 export default function RootLayout() {
-  const { setUser } = useStore();
+  const { setUser, setDarkMode, darkMode } = useStore();
 
-  // Solo verificar sesión si hay un usuario guardado
+  // Verificar sesión al cargar la app
   useEffect(() => {
     const checkSession = async () => {
       try {
@@ -15,7 +15,7 @@ export default function RootLayout() {
         
         if (session?.user) {
           const email = session.user.email || '';
-          const nombre = session.user.user_metadata?.name || email.split('@')[0] || 'Usuario';
+          const nombre = session.user.user_metadata?.name || session.user.user_metadata?.full_name || email.split('@')[0] || 'Usuario';
           
           setUser({
             id: session.user.id,
@@ -29,6 +29,24 @@ export default function RootLayout() {
     };
     
     checkSession();
+    
+    // Escuchar cambios en auth
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (session?.user) {
+        const email = session.user.email || '';
+        const nombre = session.user.user_metadata?.name || session.user.user_metadata?.full_name || email.split('@')[0] || 'Usuario';
+        
+        setUser({
+          id: session.user.id,
+          nombre: nombre,
+          email: email,
+        });
+      } else {
+        setUser(null);
+      }
+    });
+    
+    return () => subscription.unsubscribe();
   }, []);
 
   return (

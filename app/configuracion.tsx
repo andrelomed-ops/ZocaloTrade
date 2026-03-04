@@ -1,26 +1,34 @@
 import { View, Text, TouchableOpacity, StyleSheet, Switch, ScrollView, Alert, Linking } from 'react-native';
 import { useState } from 'react';
 import { router } from 'expo-router';
+import { useStore } from '../src/store/useStore';
+import { supabase } from '../src/services/supabase';
 
 export default function ConfiguracionScreen() {
+  const { user, setUser, darkMode, setDarkMode } = useStore();
   const [notificaciones, setNotificaciones] = useState(true);
   const [sonido, setSonido] = useState(true);
   const [vibracion, setVibracion] = useState(true);
   const [ubicacion, setUbicacion] = useState(false);
-  const [tema, setTema] = useState('claro');
-  const [moneda, setMoneda] = useState('MXN');
+  const tema = darkMode ? 'oscuro' : 'claro';
 
-  const handleCerrarSesion = () => {
+  const handleCerrarSesion = async () => {
     Alert.alert(
       'Cerrar Sesión',
       '¿Estás seguro de que quieres cerrar sesión?',
       [
         { text: 'Cancelar', style: 'cancel' },
-        { text: 'Cerrar Sesión', style: 'destructive', onPress: () => {
-          Alert.alert('Sesión cerrada', 'Has cerrado sesión correctamente');
+        { text: 'Cerrar Sesión', style: 'destructive', onPress: async () => {
+          await supabase.auth.signOut();
+          setUser(null);
+          router.replace('/');
         }},
       ]
     );
+  };
+
+  const toggleTema = () => {
+    setDarkMode(!darkMode);
   };
 
   const handleEliminarCuenta = () => {
@@ -146,16 +154,16 @@ export default function ConfiguracionScreen() {
           </View>
           <View style={styles.optionsRow}>
             <TouchableOpacity 
-              style={[styles.optionBtn, tema === 'claro' && styles.optionBtnActive]}
-              onPress={() => setTema('claro')}
+              style={[styles.optionBtn, !darkMode && styles.optionBtnActive]}
+              onPress={() => setDarkMode(false)}
             >
-              <Text style={[styles.optionText, tema === 'claro' && styles.optionTextActive]}>☀️ Claro</Text>
+              <Text style={[styles.optionText, !darkMode && styles.optionTextActive]}>☀️ Claro</Text>
             </TouchableOpacity>
             <TouchableOpacity 
-              style={[styles.optionBtn, tema === 'oscuro' && styles.optionBtnActive]}
-              onPress={() => setTema('oscuro')}
+              style={[styles.optionBtn, darkMode && styles.optionBtnActive]}
+              onPress={() => setDarkMode(true)}
             >
-              <Text style={[styles.optionText, tema === 'oscuro' && styles.optionTextActive]}>🌙 Oscuro</Text>
+              <Text style={[styles.optionText, darkMode && styles.optionTextActive]}>🌙 Oscuro</Text>
             </TouchableOpacity>
           </View>
         </View>
