@@ -10,60 +10,41 @@ export interface Producto {
   fotos: string[];
   tiendaId: string;
   disponible: boolean;
-  stock?: number;
 }
 
 export interface Tienda {
   id: string;
   nombre: string;
-  descripcion: string;
-  direccion: string;
-  latitud: number;
-  longitud: number;
   fotoPerfil: string;
   rating: number;
-  categoria: string;
+  nombre_tienda?: string;
 }
 
 export interface User {
   id: string;
   nombre: string;
   email: string;
-  fotoPerfil?: string;
 }
-
-export interface Pedido {
-  id: string;
-  status: string;
-  total: number;
-  createdAt: string;
-}
-
-export const MOCK_PRODUCTOS: Producto[] = [
-  { id: '1', nombre: 'Tamal de Mole', descripcion: 'Tradicional', precio: 45, categoria: 'Comida', fotos: ['https://picsum.photos/400/400'], tiendaId: 't1', disponible: true },
-];
-
-export const MOCK_TIENDAS: Tienda[] = [
-  { id: 't1', nombre: 'Don Juan Tamales', descripcion: 'Calidad', direccion: 'Centro', latitud: 0, longitud: 0, fotoPerfil: 'https://picsum.photos/100/100', rating: 4.8, categoria: 'Comida' },
-];
 
 export const CATEGORIAS = ['Todos', 'Comida', 'Bebidas', 'Artesanía', 'Ropa', 'Accesorios'];
 
+export const MOCK_PRODUCTOS: Producto[] = [
+  { id: '1', nombre: 'Producto de Ejemplo', descripcion: 'Cargando...', precio: 0, categoria: 'General', fotos: ['https://picsum.photos/400/400'], tiendaId: 't1', disponible: true },
+];
+
 interface AppState {
   user: User | null;
-  rol: 'cliente' | 'vendedor' | 'repartidor' | null;
+  rol: string;
   productos: Producto[];
   tiendas: Tienda[];
   carrito: any[];
-  pedidos: Pedido[];
+  pedidos: any[];
   favoritos: string[];
   initialized: boolean;
-  darkMode: boolean;
   
   initialize: () => Promise<void>;
   setUser: (user: User | null) => void;
-  setRol: (rol: 'cliente' | 'vendedor' | 'repartidor' | null) => void;
-  setDarkMode: (darkMode: boolean) => void;
+  setRol: (rol: string) => void;
   toggleFavorito: (id: string) => void;
   addToCarrito: (p: any) => void;
   clearCarrito: () => void;
@@ -78,11 +59,9 @@ export const useStore = create<AppState>((set) => ({
   pedidos: [],
   favoritos: [],
   initialized: false,
-  darkMode: false,
   
   setUser: (user) => set({ user }),
   setRol: (rol) => set({ rol }),
-  setDarkMode: (darkMode) => set({ darkMode }),
   
   initialize: async () => {
     try {
@@ -90,17 +69,17 @@ export const useStore = create<AppState>((set) => ({
       const { data: t } = await supabase.from(TABLES.TIENDAS).select('*').eq('activa', true);
       
       set({
-        productos: (p && p.length > 0) ? p.map((item: any) => ({ ...item, tiendaId: item.tienda_id })) : MOCK_PRODUCTOS,
-        tiendas: (t && t.length > 0) ? t : MOCK_TIENDAS,
+        productos: (p && p.length > 0) ? p : MOCK_PRODUCTOS,
+        tiendas: t || [],
         initialized: true,
       });
     } catch (e) {
-      set({ productos: MOCK_PRODUCTOS, tiendas: MOCK_TIENDAS, initialized: true });
+      set({ productos: MOCK_PRODUCTOS, initialized: true });
     }
   },
 
   toggleFavorito: (id) => set((s) => ({
-    favoritos: s.favoritos?.includes(id) ? s.favoritos.filter(x => x !== id) : [...(s.favoritos || []), id]
+    favoritos: (s.favoritos || []).includes(id) ? s.favoritos.filter(x => x !== id) : [...(s.favoritos || []), id]
   })),
 
   addToCarrito: (p) => set((s) => ({
