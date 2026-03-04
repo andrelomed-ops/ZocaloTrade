@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { persist, createJSONStorage } from 'zustand/middleware';
 import { supabase, TABLES } from '../services/supabase';
 
 export interface Producto {
@@ -12,6 +13,7 @@ export interface Producto {
   disponible: boolean;
   envio_incluido?: boolean;
   stock?: number;
+  foto?: string;
 }
 
 export interface Tienda {
@@ -44,20 +46,14 @@ export interface Pedido {
   costo_envio?: number;
   total: number;
   tipoEnvio?: string;
-  status: 'pendiente' | 'preparando' | 'listo' | 'en_camino' | 'entregado' | 'cancelado';
-  estado_pago?: 'pendiente' | 'envio_pagado' | 'pagado';
-  estado_entrega?: 'pendiente' | 'confirmado' | 'preparando' | 'en_camino' | 'entregado' | 'no_entregado';
-  etapas_seguimiento?: PedidoEtapa[];
+  status: string;
+  estado_pago?: string;
+  estado_entrega?: string;
+  etapas_seguimiento?: any[];
   direccionEntrega: string;
   notas: string;
   metodoPago?: string;
   createdAt: string;
-}
-
-export interface PedidoEtapa {
-  etapa: 'pago_envio' | 'confirmado' | 'preparando' | 'en_camino' | 'entregado';
-  fecha: string;
-  completado: boolean;
 }
 
 export interface User {
@@ -92,7 +88,7 @@ interface AppState {
   initialized: boolean;
   darkMode: boolean;
   
-  initialize: () => void;
+  initialize: () => Promise<void>;
   setUser: (user: User | null) => void;
   setRol: (rol: 'cliente' | 'vendedor' | 'repartidor' | null) => void;
   setDarkMode: (darkMode: boolean) => void;
@@ -103,235 +99,176 @@ interface AppState {
   removeFromCarrito: (productoId: string) => void;
   updateCarritoCantidad: (productoId: string, cantidad: number) => void;
   clearCarrito: () => void;
-  addPedido: (pedido: Pedido) => void;
-  updatePedido: (pedidoId: string, updates: Partial<Pedido>) => void;
+  addPedido: (pedido: Pedido) => Promise<void>;
+  updatePedido: (pedidoId: string, updates: Partial<Pedido>) => Promise<void>;
+  loadPedidos: (clienteId?: string) => Promise<void>;
   toggleFavorito: (productoId: string) => void;
 }
 
-export const useStore = create<AppState>((set, get) => ({
-  user: null,
-  rol: 'cliente',
-  productos: [],
-  tiendas: [],
-  carrito: [],
-  pedidos: [],
-  favoritos: [],
-  initialized: false,
-  darkMode: false,
-  
-  setUser: (user) => set({ user }),
-  setRol: (rol) => set({ rol }),
-  setDarkMode: (darkMode) => set({ darkMode }),
-  
-  initialize: async () => {
-    try {
-      // Cargar productos desde Supabase
-      const { data: productosData } = await supabase
-        .from(TABLES.PRODUCTOS)
-        .select('*')
-        .eq('activo', true);
+export const useStore = create<AppState>()(
+  persist(
+    (set, get) => ({
+      user: null,
+      rol: 'cliente',
+      productos: [],
+      tiendas: [],
+      carrito: [],
+      pedidos: [],
+      favoritos: [],
+      initialized: false,
+      darkMode: false,
       
-      // Cargar tiendas desde Supabase
-      const { data: tiendasData } = await supabase
-        .from(TABLES.TIENDAS)
-        .select('*')
-        .eq('activa', true);
+      setUser: (user) => set({ user }),
+      setRol: (rol) => set({ rol }),
+      setDarkMode: (darkMode) => set({ darkMode }),
       
-      const productos: Producto[] = (productosData || []).map((p: any) => ({
-        id: p.id,
-        nombre: p.nombre,
-        descripcion: p.descripcion || '',
-        precio: Number(p.precio),
-        categoria: p.categoria || 'General',
-        fotos: p.fotos || ['https://picsum.photos/400/400'],
-        tiendaId: p.tienda_id,
-        disponible: p.activo,
-        envio_incluido: p.envio_incluido,
-        stock: p.stock,
-      }));
+      initialize: async () => {
+        try {
+          const { data: productosData } = await supabase.from(TABLES.PRODUCTOS).select('*').eq('activo', true);
+          const { data: tiendasData } = await supabase.from(TABLES.TIENDAS).select('*').eq('activa', true);
+          
+          const productos: Producto[] = (productosData || []).map((p: any) => ({
+            id: p.id,
+            nombre: p.nombre,
+            descripcion: p.descripcion || '',
+            precio: Number(p.precio),
+            categoria: p.categoria || 'General',
+            fotos: p.fotos || ['https://picsum.photos/400/400'],
+            tiendaId: p.tienda_id,
+            disponible: p.activo,
+            envio_incluido: p.envio_incluido,
+            stock: p.stock,
+          }));
+          
+          const tiendas: Tienda[] = (tiendasData || []).map((t: any) => ({
+            id: t.id,
+            nombre: t.nombre,
+            descripcion: t.descripcion || '',
+            direccion: 'Entregas en todo el Zócalo, CDMX',
+            latitud: 0,
+            longitud: 0,
+            fotoPerfil: t.foto_perfil || 'https://picsum.photos/100/100',
+            rating: Number(t.rating) || 0,
+            categoria: t.categoria || 'General',
+          }));
+          
+          set({
+            productos: productos.length > 0 ? productos : MOCK_PRODUCTOS,
+            tiendas: tiendas.length > 0 ? tiendas : MOCK_TIENDAS,
+            initialized: true,
+          });
+        } catch (e) {
+          set({ productos: MOCK_PRODUCTOS, tiendas: MOCK_TIENDAS, initialized: true });
+        }
+      },
       
-      const tiendas: Tienda[] = (tiendasData || []).map((t: any) => ({
-        id: t.id,
-        nombre: t.nombre,
-        descripcion: t.descripcion || '',
-        direccion: 'Entregas en todo el Zócalo, CDMX',
-        latitud: 0,
-        longitud: 0,
-        fotoPerfil: t.foto_perfil || 'https://picsum.photos/100/100',
-        rating: Number(t.rating) || 0,
-        categoria: t.categoria || 'General',
-      }));
+      addProducto: (producto) => set((state) => ({ productos: [...state.productos, producto] })),
+      updateProducto: (productoId, updates) => set((state) => ({
+        productos: state.productos.map(p => p.id === productoId ? { ...p, ...updates } : p)
+      })),
+      deleteProducto: (productoId) => set((state) => ({
+        productos: state.productos.filter(p => p.id !== productoId)
+      })),
+      addToCarrito: (producto, cantidad = 1) => set((state) => {
+        const existing = state.carrito.find(item => item.producto.id === producto.id);
+        if (existing) {
+          return {
+            carrito: state.carrito.map(item =>
+              item.producto.id === producto.id ? { ...item, cantidad: item.cantidad + cantidad } : item
+            )
+          };
+        }
+        return { carrito: [...state.carrito, { producto, cantidad }] };
+      }),
+      removeFromCarrito: (productoId) => set((state) => ({
+        carrito: state.carrito.filter(item => item.producto.id !== productoId)
+      })),
+      updateCarritoCantidad: (productoId, cantidad) => set((state) => ({
+        carrito: cantidad <= 0 
+          ? state.carrito.filter(item => item.producto.id !== productoId)
+          : state.carrito.map(item => item.producto.id === productoId ? { ...item, cantidad } : item)
+      })),
+      clearCarrito: () => set({ carrito: [] }),
       
-      // Si no hay datos en Supabase, usar datos mock
-      set({
-        productos: productos.length > 0 ? productos : MOCK_PRODUCTOS,
-        tiendas: tiendas.length > 0 ? tiendas : MOCK_TIENDAS,
-        initialized: true,
-      });
-    } catch (e) {
-      console.log('Error initializing:', e);
-      // En caso de error, usar datos locales
-      set({
-        productos: MOCK_PRODUCTOS,
-        tiendas: MOCK_TIENDAS,
-        initialized: true,
-      });
-    }
-  },
-  
-  addProducto: (producto) => set((state) => ({
-    productos: [...state.productos, producto]
-  })),
-  
-  updateProducto: (productoId, updates) => set((state) => ({
-    productos: state.productos.map(p =>
-      p.id === productoId ? { ...p, ...updates } : p
-    )
-  })),
-  
-  deleteProducto: (productoId) => set((state) => ({
-    productos: state.productos.filter(p => p.id !== productoId)
-  })),
-  
-  addToCarrito: (producto, cantidad = 1) => set((state) => {
-    const existing = state.carrito.find(item => item.producto.id === producto.id);
-    if (existing) {
-      return {
-        carrito: state.carrito.map(item =>
-          item.producto.id === producto.id
-            ? { ...item, cantidad: item.cantidad + cantidad }
-            : item
-        )
-      };
-    }
-    return { carrito: [...state.carrito, { producto, cantidad }] };
-  }),
-  
-  removeFromCarrito: (productoId) => set((state) => ({
-    carrito: state.carrito.filter(item => item.producto.id !== productoId)
-  })),
-  
-  updateCarritoCantidad: (productoId, cantidad) => set((state) => ({
-    carrito: cantidad <= 0 
-      ? state.carrito.filter(item => item.producto.id !== productoId)
-      : state.carrito.map(item =>
-          item.producto.id === productoId
-            ? { ...item, cantidad }
-            : item
-        )
-  })),
-  
-  clearCarrito: () => set({ carrito: [] }),
-  
-  addPedido: async (pedido) => {
-    try {
-      // Calcular montos
-      const montoProveedor = pedido.subtotal * 0.9; // 90% al proveedor
+      addPedido: async (pedido) => {
+        try {
+          await supabase.from(TABLES.PEDIDOS).insert({
+            cliente_id: pedido.clienteId,
+            tienda_id: pedido.tiendaId,
+            productos: pedido.productos.map(p => ({
+              producto_id: p.producto.id,
+              cantidad: p.cantidad,
+              precio: p.producto.precio,
+              nombre: p.producto.nombre,
+            })),
+            subtotal: pedido.subtotal,
+            comision: pedido.comision,
+            total: pedido.total,
+            status: pedido.status,
+            direccion_entrega: pedido.direccionEntrega,
+            metodo_pago: pedido.metodoPago,
+          });
+          set((state) => ({ pedidos: [pedido, ...state.pedidos] }));
+        } catch (e) {
+          set((state) => ({ pedidos: [pedido, ...state.pedidos] }));
+        }
+      },
       
-      // Etapas de seguimiento
-      const etapas_seguimiento = [
-        { etapa: 'pago_envio', fecha: new Date().toISOString(), completado: true },
-        { etapa: 'confirmado', fecha: '', completado: false },
-        { etapa: 'preparando', fecha: '', completado: false },
-        { etapa: 'en_camino', fecha: '', completado: false },
-        { etapa: 'entregado', fecha: '', completado: false },
-      ];
-      
-      // Guardar en Supabase
-      await supabase.from(TABLES.PEDIDOS).insert({
-        cliente_id: pedido.clienteId,
-        tienda_id: pedido.tiendaId,
-        productos: pedido.productos.map(p => ({
-          producto_id: p.producto.id,
-          cantidad: p.cantidad,
-          precio: p.producto.precio,
-          nombre: p.producto.nombre,
-        })),
-        subtotal: pedido.subtotal,
-        comision: pedido.comision,
-        monto_proveedor: montoProveedor,
-        monto_contraentrega: pedido.monto_contraentrega,
-        costo_envio: pedido.costo_envio || 0,
-        total: pedido.total,
-        tipo_envio: pedido.tipoEnvio,
-        status: pedido.status,
-        estado_pago: pedido.estado_pago || 'pendiente',
-        estado_entrega: 'pendiente',
-        etapas_seguimiento,
-        direccion_entrega: pedido.direccionEntrega,
-        metodo_pago: pedido.metodoPago || 'efectivo',
-        notas: pedido.notas,
-      });
-      
-      // Actualizar estado local
-      set((state) => ({
-        pedidos: [pedido, ...state.pedidos]
-      }));
-    } catch (e) {
-      console.log('Error saving pedido:', e);
-      // Guardar localmente si falla
-      set((state) => ({
-        pedidos: [pedido, ...state.pedidos]
-      }));
-    }
-  },
-
-  updatePedido: async (pedidoId, updates) => {
-    try {
-      // Actualizar en Supabase
-      await supabase
-        .from(TABLES.PEDIDOS)
-        .update({ status: updates.status })
-        .eq('id', pedidoId);
-    } catch (e) {
-      console.log('Error updating pedido:', e);
-    }
-    
-    set((state) => ({
-      pedidos: state.pedidos.map(p =>
-        p.id === pedidoId ? { ...p, ...updates } : p
-      )
-    }));
-  },
-
-  loadPedidos: async (clienteId?: string) => {
-    try {
-      let query = supabase.from(TABLES.PEDIDOS).select('*').order('created_at', { ascending: false });
-      
-      if (clienteId) {
-        query = query.eq('cliente_id', clienteId);
-      }
-      
-      const { data } = await query;
-      
-      if (data) {
-        const pedidos: Pedido[] = data.map((p: any) => ({
-          id: p.id,
-          clienteId: p.cliente_id,
-          tiendaId: p.tienda_id,
-          productos: p.productos || [],
-          total: Number(p.total),
-          comision: Number(p.comision),
-          costo_envio: Number(p.costo_envio),
-          status: p.status,
-          direccionEntrega: p.direccion_entrega,
-          notas: p.notas,
-          createdAt: p.created_at,
+      updatePedido: async (pedidoId, updates) => {
+        try {
+          await supabase.from(TABLES.PEDIDOS).update({ status: updates.status }).eq('id', pedidoId);
+        } catch (e) {}
+        set((state) => ({
+          pedidos: state.pedidos.map(p => p.id === pedidoId ? { ...p, ...updates } : p)
         }));
-        
-        set({ pedidos });
-      }
-    } catch (e) {
-      console.log('Error loading pedidos:', e);
+      },
+      
+      loadPedidos: async (clienteId?: string) => {
+        try {
+          let query = supabase.from(TABLES.PEDIDOS).select('*').order('created_at', { ascending: false });
+          if (clienteId) query = query.eq('cliente_id', clienteId);
+          const { data } = await query;
+          if (data) {
+            const pedidos: Pedido[] = data.map((p: any) => ({
+              id: p.id,
+              clienteId: p.cliente_id,
+              tiendaId: p.tienda_id,
+              productos: p.productos || [],
+              total: Number(p.total),
+              comision: Number(p.comision),
+              status: p.status,
+              direccionEntrega: p.direccion_entrega,
+              notas: p.notas,
+              createdAt: p.created_at,
+              subtotal: Number(p.subtotal),
+              monto_proveedor: Number(p.monto_proveedor)
+            }));
+            set({ pedidos });
+          }
+        } catch (e) {}
+      },
+      
+      toggleFavorito: (productoId) => set((state) => {
+        const isFavorite = state.favoritos.includes(productoId);
+        return {
+          favoritos: isFavorite ? state.favoritos.filter(id => id !== productoId) : [...state.favoritos, productoId]
+        };
+      }),
+    }),
+    {
+      name: 'zocalotrade-storage',
+      storage: createJSONStorage(() => (typeof window !== 'undefined' ? localStorage : {
+        getItem: () => null,
+        setItem: () => null,
+        removeItem: () => null,
+      })),
+      partialize: (state) => ({ 
+        user: state.user, 
+        rol: state.rol, 
+        darkMode: state.darkMode,
+        carrito: state.carrito,
+        favoritos: state.favoritos
+      }),
     }
-  },
-
-  toggleFavorito: (productoId) => set((state) => {
-    const isFavorite = state.favoritos.includes(productoId);
-    return {
-      favoritos: isFavorite
-        ? state.favoritos.filter(id => id !== productoId)
-        : [...state.favoritos, productoId]
-    };
-  }),
-}));
+  )
+);
