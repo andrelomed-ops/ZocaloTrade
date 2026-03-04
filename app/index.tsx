@@ -1,37 +1,57 @@
-import { View, Text, TouchableOpacity, StyleSheet, Image, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, ActivityIndicator, Platform } from 'react-native';
 import { router } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { supabase } from '../src/services/supabase';
+import { useStore } from '../src/store/useStore';
 
 export default function SplashScreen() {
-  const [loading, setLoading] = useState(true);
+  const { setUser, initialize } = useStore();
 
   useEffect(() => {
-    const checkAuthAndNavigate = async () => {
+    const initApp = async () => {
       try {
+        // 1. Cargar datos básicos
+        await initialize();
+
+        // 2. Darle un momento a Supabase para procesar tokens de la URL (especialmente en Web)
+        if (Platform.OS === 'web') {
+          // Pequeña espera para asegurar que el cliente de Supabase leyó el hash de la URL
+          await new Promise(resolve => setTimeout(resolve, 500));
+        }
+
         const { data: { session } } = await supabase.auth.getSession();
         
-        // Wait a small bit for splash screen feel
-        setTimeout(() => {
-          router.replace('/(tabs)');
-        }, 1500);
+        if (session?.user) {
+          const user = session.user;
+          const userEmail = user.email || '';
+          const userNombre = user.user_metadata?.full_name || user.user_metadata?.name || userEmail.split('@')[0];
+          
+          setUser({
+            id: user.id,
+            nombre: userNombre,
+            email: userEmail,
+          });
+        }
+
+        // 3. Navegar a la app
+        router.replace('/(tabs)');
         
       } catch (error) {
+        console.error('Initialization error:', error);
         router.replace('/(tabs)');
       }
     };
 
-    checkAuthAndNavigate();
+    initApp();
   }, []);
 
   return (
     <View style={styles.splash}>
       <Text style={styles.logo}>🏪</Text>
       <Text style={styles.appName}>ZocaloTrade</Text>
-      <Text style={styles.tagline}>Tu marketplace del Zócalo</Text>
+      <Text style={styles.tagline}>Sincronizando sesión...</Text>
       <View style={styles.loading}>
         <ActivityIndicator color="#fff" size="large" />
-        <Text style={styles.loadingText}>Cargando...</Text>
       </View>
     </View>
   );
@@ -44,100 +64,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  logo: {
-    fontSize: 100,
-  },
-  appName: {
-    fontSize: 36,
-    fontWeight: 'bold',
-    color: '#fff',
-    marginTop: 20,
-  },
-  tagline: {
-    fontSize: 18,
-    color: 'rgba(255,255,255,0.9)',
-    marginTop: 10,
-  },
-  loading: {
-    marginTop: 50,
-  },
-  loadingText: {
-    color: '#fff',
-    fontSize: 14,
-  },
-  welcome: {
-    flex: 1,
-    backgroundColor: '#fff',
-    padding: 30,
-    justifyContent: 'space-between',
-  },
-  content: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  welcomeLogo: {
-    fontSize: 80,
-    marginBottom: 20,
-  },
-  welcomeTitle: {
-    fontSize: 24,
-    color: '#666',
-  },
-  welcomeAppName: {
-    fontSize: 36,
-    fontWeight: 'bold',
-    color: '#FF6B35',
-    marginTop: 5,
-  },
-  welcomeSubtitle: {
-    fontSize: 16,
-    color: '#666',
-    textAlign: 'center',
-    marginTop: 20,
-    lineHeight: 24,
-    paddingHorizontal: 20,
-  },
-  features: {
-    marginTop: 40,
-    width: '100%',
-  },
-  featureItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 15,
-    paddingHorizontal: 20,
-  },
-  featureIcon: {
-    fontSize: 28,
-    marginRight: 15,
-  },
-  featureText: {
-    fontSize: 16,
-    color: '#333',
-    flex: 1,
-  },
-  buttons: {
-    paddingBottom: 30,
-  },
-  getStartedBtn: {
-    backgroundColor: '#FF6B35',
-    padding: 18,
-    borderRadius: 30,
-    alignItems: 'center',
-  },
-  getStartedText: {
-    color: '#fff',
-    fontSize: 18,
-    fontWeight: 'bold',
-  },
-  loginBtn: {
-    marginTop: 15,
-    alignItems: 'center',
-  },
-  loginText: {
-    color: '#FF6B35',
-    fontSize: 16,
-    fontWeight: '600',
-  },
+  logo: { fontSize: 100 },
+  appName: { fontSize: 36, fontWeight: 'bold', color: '#fff', marginTop: 20 },
+  tagline: { fontSize: 18, color: 'rgba(255,255,255,0.9)', marginTop: 10 },
+  loading: { marginTop: 50 },
 });
