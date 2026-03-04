@@ -10,6 +10,7 @@ export interface Producto {
   fotos: string[];
   tiendaId: string;
   disponible: boolean;
+  stock?: number;
 }
 
 export interface Tienda {
@@ -30,24 +31,55 @@ export interface User {
   fotoPerfil?: string;
 }
 
+export interface Pedido {
+  id: string;
+  cliente_id: string;
+  tienda_id: string;
+  productos: any[];
+  subtotal: number;
+  total: number;
+  status: string;
+  direccion_entrega: string;
+  created_at: string;
+  clinckargo_id?: string | null;
+}
+
 export const CATEGORIAS = ['Todos', 'Comida', 'Bebidas', 'Artesanía', 'Ropa', 'Accesorios'];
 
 export const MOCK_PRODUCTOS: Producto[] = [
-  { id: '1', nombre: 'Tamal de Mole', descripcion: 'Delicioso tamal tradicional', precio: 45, categoria: 'Comida', fotos: ['https://picsum.photos/400/400?random=1'], tiendaId: 't1', disponible: true },
-  { id: '2', nombre: 'Pulsera Artesanal', descripcion: 'Hecha a mano', precio: 80, categoria: 'Artesanía', fotos: ['https://picsum.photos/400/400?random=2'], tiendaId: 't1', disponible: true },
+  { id: '1', nombre: 'Producto Tradicional', descripcion: 'Hecho a mano', precio: 150, categoria: 'Artesanía', fotos: ['https://picsum.photos/400/400'], tiendaId: 't1', disponible: true },
 ];
 
 export const MOCK_TIENDAS: Tienda[] = [
-  { id: 't1', nombre: 'Tienda Zócalo', fotoPerfil: 'https://picsum.photos/100/100?random=10', rating: 4.9, categoria: 'General' },
+  { id: 't1', nombre: 'Tienda Zócalo', fotoPerfil: 'https://picsum.photos/100/100', rating: 4.9, categoria: 'General' },
 ];
+
+const LIGHT_COLORS = {
+  background: '#f8f8f8',
+  card: '#ffffff',
+  text: '#333333',
+  subtext: '#666666',
+  primary: '#FF6B35',
+  border: '#eeeeee',
+};
+
+const DARK_COLORS = {
+  background: '#121212',
+  card: '#1e1e1e',
+  text: '#ffffff',
+  subtext: '#aaaaaa',
+  primary: '#FF6B35',
+  border: '#333333',
+};
 
 interface AppState {
   user: User | null;
   rol: string;
+  isAdmin: boolean;
   productos: Producto[];
   tiendas: Tienda[];
   carrito: any[];
-  pedidos: any[];
+  pedidos: Pedido[];
   favoritos: string[];
   notificaciones: any[];
   initialized: boolean;
@@ -73,27 +105,10 @@ interface AppState {
   markAsRead: (id: string) => Promise<void>;
 }
 
-const LIGHT_COLORS = {
-  background: '#f8f8f8',
-  card: '#ffffff',
-  text: '#333333',
-  subtext: '#666666',
-  primary: '#FF6B35',
-  border: '#eeeeee',
-};
-
-const DARK_COLORS = {
-  background: '#121212',
-  card: '#1e1e1e',
-  text: '#ffffff',
-  subtext: '#aaaaaa',
-  primary: '#FF6B35',
-  border: '#333333',
-};
-
 export const useStore = create<AppState>((set, get) => ({
   user: null,
   rol: 'cliente',
+  isAdmin: false,
   productos: [],
   tiendas: [],
   carrito: [],
@@ -105,7 +120,13 @@ export const useStore = create<AppState>((set, get) => ({
   colors: LIGHT_COLORS,
   userLocation: null,
   
-  setUser: (user) => set({ user }),
+  setUser: (user) => {
+    const adminEmails = ['andrelomed@gmail.com'];
+    set({ 
+      user, 
+      isAdmin: user ? adminEmails.includes(user.email) : false 
+    });
+  },
   setRol: (rol) => set({ rol }),
   setDarkMode: (darkMode) => set({ 
     darkMode, 
@@ -133,7 +154,6 @@ export const useStore = create<AppState>((set, get) => ({
     try {
       const { data: profile } = await supabase.from('perfiles').select('favoritos').eq('id', userId).maybeSingle();
       if (profile?.favoritos) set({ favoritos: profile.favoritos });
-      
       const { data: notifs } = await supabase.from('notificaciones').select('*').eq('usuario_id', userId).order('created_at', { ascending: false });
       if (notifs) set({ notificaciones: notifs });
     } catch (e) {}

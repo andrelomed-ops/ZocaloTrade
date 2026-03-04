@@ -1,11 +1,11 @@
 import { View, Text, TouchableOpacity, StyleSheet, Switch, Alert, ScrollView, Platform } from 'react-native';
 import { useStore } from '../../src/store/useStore';
 import { router } from 'expo-router';
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { supabase } from '../../src/services/supabase';
 
 export default function PerfilScreen() {
-  const { user, rol, setRol, pedidos, setUser, colors, darkMode, setDarkMode } = useStore();
+  const { user, rol, setRol, pedidos, setUser, colors, darkMode, setDarkMode, isAdmin } = useStore();
   const [isVendedor, setIsVendedor] = useState(rol === 'vendedor');
 
   const toggleRol = (value: boolean) => {
@@ -52,6 +52,16 @@ export default function PerfilScreen() {
 
   return (
     <ScrollView style={[styles.container, { backgroundColor: colors.background }]}>
+      {isAdmin && (
+        <TouchableOpacity 
+          style={[styles.adminBanner, { backgroundColor: '#8e44ad' }]}
+          onPress={() => router.push('/admin')}
+        >
+          <Text style={styles.adminBannerTitle}>🛡️ Panel Maestro (Admin)</Text>
+          <Text style={styles.adminBannerText}>Ver métricas globales de ZocaloTrade</Text>
+        </TouchableOpacity>
+      )}
+
       <View style={[styles.header, { backgroundColor: colors.primary }]}>
         <View style={styles.avatar}>
           <Text style={styles.avatarText}>{user.fotoPerfil ? '🖼️' : '👤'}</Text>
@@ -119,4 +129,7 @@ const styles = StyleSheet.create({
   menuItem: { marginHorizontal: 15, borderRadius: 12 },
   menuText: { fontSize: 16 },
   loginRequiredBtn: { padding: 15, borderRadius: 12, width: 200, alignItems: 'center' },
+  adminBanner: { margin: 15, padding: 15, borderRadius: 12, elevation: 3 },
+  adminBannerTitle: { color: '#fff', fontWeight: 'bold', fontSize: 16 },
+  adminBannerText: { color: '#fff', opacity: 0.8, fontSize: 12 },
 });
