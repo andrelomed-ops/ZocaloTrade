@@ -8,36 +8,42 @@ export default function SplashScreen() {
   const { setUser, initialize } = useStore();
 
   useEffect(() => {
+    let mounted = true;
+
     const initApp = async () => {
       try {
-        // 1. Inicializar datos básicos (productos/tiendas)
+        // Fallback timeout para forzar la navegación si Supabase tarda mucho
+        const timeoutId = setTimeout(() => {
+          if (mounted) router.replace('/(tabs)');
+        }, 5000);
+
         await initialize();
 
-        // 2. Verificar sesión de Supabase
         const { data: { session } } = await supabase.auth.getSession();
         
-        if (session?.user) {
+        if (session?.user && mounted) {
           const user = session.user;
-          const userEmail = user.email || '';
-          const userNombre = user.user_metadata?.full_name || user.user_metadata?.name || userEmail.split('@')[0];
-          
           setUser({
             id: user.id,
-            nombre: userNombre,
-            email: userEmail,
+            nombre: user.user_metadata?.full_name || user.email?.split('@')[0] || '',
+            email: user.email || '',
           });
         }
 
-        // 3. Navegar al Home
-        router.replace('/(tabs)');
+        clearTimeout(timeoutId);
+        if (mounted) router.replace('/(tabs)');
         
       } catch (error) {
         console.error('Initialization error:', error);
-        router.replace('/(tabs)');
+        if (mounted) router.replace('/(tabs)');
       }
     };
 
     initApp();
+
+    return () => {
+      mounted = false;
+    };
   }, []);
 
   return (
