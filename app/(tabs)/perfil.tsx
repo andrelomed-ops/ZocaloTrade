@@ -98,6 +98,24 @@ export default function PerfilScreen() {
         </View>
       </View>
 
+      {isVendedor && (
+        <View style={[styles.section, { backgroundColor: colors.card }]}>
+          <Text style={[styles.sectionTitle, { color: colors.text }]}>Herramientas de Vendedor</Text>
+          <TouchableOpacity 
+            style={[styles.menuItem, { backgroundColor: colors.background, padding: 15, marginBottom: 10 }]}
+            onPress={() => router.push('/mis-productos')}
+          >
+            <Text style={[styles.menuText, { color: colors.text }]}>📦 Mi Inventario</Text>
+          </TouchableOpacity>
+          <TouchableOpacity 
+            style={[styles.menuItem, { backgroundColor: colors.background, padding: 15 }]}
+            onPress={() => router.push('/estadisticas')}
+          >
+            <Text style={[styles.menuText, { color: colors.text }]}>📈 Mis Estadísticas</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
       <TouchableOpacity 
         style={[styles.menuItem, { backgroundColor: colors.card, marginTop: 10, padding: 15 }]}
         onPress={() => router.push('/configuracion')}
