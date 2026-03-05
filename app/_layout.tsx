@@ -77,6 +77,7 @@ export default function RootLayout() {
       <Stack.Screen name="checkout" options={{ title: 'Checkout' }} />
       <Stack.Screen name="seguimiento" options={{ title: 'Seguimiento' }} />
       <Stack.Screen name="admin/index" options={{ title: 'Panel Maestro' }} />
+      <Stack.Screen name="admin-panel" options={{ title: 'Admin Web', headerShown: false }} />
       <Stack.Screen name="mis-productos" options={{ title: 'Mi Inventario' }} />
       <Stack.Screen name="pedidos-vendedor" options={{ title: 'Pedidos Recibidos' }} />
       <Stack.Screen name="estadisticas" options={{ title: 'Estadísticas' }} />

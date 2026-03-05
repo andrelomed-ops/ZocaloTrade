@@ -55,7 +55,7 @@ export default function PerfilScreen() {
       {isAdmin && (
         <TouchableOpacity 
           style={[styles.adminBanner, { backgroundColor: '#8e44ad' }]}
-          onPress={() => router.push('/admin')}
+          onPress={() => router.push(Platform.OS === 'web' ? '/admin-panel' : '/admin')}
         >
           <Text style={styles.adminBannerTitle}>🛡️ Panel Maestro (Admin)</Text>
           <Text style={styles.adminBannerText}>Ver métricas globales de ZocaloTrade</Text>
