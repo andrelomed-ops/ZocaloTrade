@@ -9,7 +9,7 @@ import { useTranslation } from 'react-i18next';
 
 export default function HomeScreen() {
   const { t, i18n } = useTranslation();
-  const { addToCarrito, favoritos, toggleFavorito, productos, tiendas, colors, initialize, setUserLocation, userLocation, initialized } = useStore();
+  const { addToCarrito, favoritos, toggleFavorito, productos, tiendas, colors, initialize, initialized } = useStore();
   const [categoriaSeleccionada, setCategoriaSeleccionada] = useState('Todos');
   const [refreshing, setRefreshing] = useState(false);
   
@@ -22,19 +22,6 @@ export default function HomeScreen() {
   });
 
   useEffect(() => {
-    (async () => {
-      try {
-        let { status } = await Location.requestForegroundPermissionsAsync();
-        if (status === 'granted') {
-          let location = await Location.getCurrentPositionAsync({});
-          setUserLocation({
-            lat: location.coords.latitude,
-            lng: location.coords.longitude
-          });
-        }
-      } catch (e) {}
-    })();
-    
     if (!initialized) {
       initialize();
     }
@@ -132,7 +119,6 @@ export default function HomeScreen() {
           [1, 2, 3].map(i => <Skeleton key={i} width={120} height={130} style={{ marginHorizontal: 8, borderRadius: 12 }} />)
         ) : (
           activeTiendas.map((tienda: any) => {
-            const distance = userLocation ? calculateDistance(userLocation.lat, userLocation.lng, tienda.latitud || 19.4326, tienda.longitud || -99.1332) : null;
             return (
               <TouchableOpacity 
                 key={tienda.id} 
@@ -142,7 +128,7 @@ export default function HomeScreen() {
                 <Image source={{ uri: tienda.fotoPerfil || 'https://picsum.photos/100/100' }} style={styles.tiendaImage} />
                 <Text style={[styles.tiendaNombre, { color: colors.text }]} numberOfLines={1}>{tienda.nombre || tienda.nombre_tienda}</Text>
                 <Text style={[styles.tiendaRating, { color: colors.subtext }]}>
-                  ⭐ {tienda.rating} {distance ? `• ${distance}km` : ''}
+                  ⭐ {tienda.rating}
                 </Text>
               </TouchableOpacity>
             );
