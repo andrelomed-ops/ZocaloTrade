@@ -7,7 +7,7 @@ import { supabase, TABLES, uploadImage } from '../src/services/supabase';
 
 export default function AgregarProductoScreen() {
   const router = useRouter();
-  const { addProducto, colors } = useStore();
+  const { colors, initialize } = useStore();
   
   const [nombre, setNombre] = useState('');
   const [descripcion, setDescripcion] = useState('');
@@ -17,6 +17,45 @@ export default function AgregarProductoScreen() {
   const [guardando, setGuardando] = useState(false);
 
   const pickImage = async () => {
+    // Pedir permiso para la cámara
+    const { status } = await ImagePicker.requestCameraPermissionsAsync();
+    
+    if (status !== 'granted') {
+      if (Platform.OS === 'web') alert('Se necesita permiso de cámara');
+      else Alert.alert('Permiso denegado', 'Necesitamos acceso a tu cámara para tomar fotos de tus productos.');
+    }
+
+    // Darle a elegir al usuario si quiere cámara o galería
+    if (Platform.OS !== 'web') {
+      Alert.alert(
+        'Subir Foto',
+        '¿De dónde quieres obtener la imagen?',
+        [
+          { text: 'Cámara', onPress: openCamera },
+          { text: 'Galería', onPress: openGallery },
+          { text: 'Cancelar', style: 'cancel' }
+        ]
+      );
+    } else {
+      // En Web, ImagePicker maneja esto automáticamente con un popup de navegador
+      openGallery();
+    }
+  };
+
+  const openCamera = async () => {
+    const result = await ImagePicker.launchCameraAsync({
+      mediaTypes: ['images'],
+      allowsEditing: true, // Esto es clave para el recorte profesional
+      aspect: [1, 1], // Forzar cuadrado perfecto tipo Instagram/MercadoLibre
+      quality: 0.8,
+    });
+
+    if (!result.canceled && result.assets[0]) {
+      setFotos([...fotos, result.assets[0].uri]);
+    }
+  };
+
+  const openGallery = async () => {
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ['images'],
       allowsEditing: true,
@@ -62,10 +101,8 @@ export default function AgregarProductoScreen() {
       if (error) throw error;
 
       if (data) {
-        addProducto({
-          ...data,
-          tiendaId: data.tienda_id
-        });
+        // En lugar de addProducto manual, forzamos un refresco global
+        await initialize();
       }
 
       if (Platform.OS === 'web') alert('¡Producto publicado con éxito!');
