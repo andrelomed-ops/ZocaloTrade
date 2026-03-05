@@ -12,11 +12,19 @@ const ZONAS_ENVIO = [
 ];
 
 export default function CheckoutScreen() {
-  const { carrito, clearCarrito, addPedido, user, colors } = useStore();
+  const { carrito, clearCarrito, addPedido, loadPedidos, user, colors } = useStore();
   const [direccionEntrega, setDireccionEntrega] = useState('');
-  const [metodoPago, setMetodoPago] = useState<'contraentrega' | 'tarjeta'>('contraentrega');
   const [zonaSeleccionada, setZonaSeleccionada] = useState(ZONAS_ENVIO[0]);
   const [confirmando, setConfirmando] = useState(false);
+
+  const subtotal = (carrito || []).reduce((sum, item) => sum + item.producto.precio * item.cantidad, 0);
+  const costoEnvio = zonaSeleccionada.precio;
+  
+  // REGLA DE NEGOCIO: Si supera $30,000 MXN, el pago debe ser 100% tarjeta
+  const esCompraSegura = subtotal > 30000;
+  
+  // Si supera 30k, fuerza tarjeta. Si no, por defecto contraentrega
+  const [metodoPago, setMetodoPago] = useState<'contraentrega' | 'tarjeta'>(esCompraSegura ? 'tarjeta' : 'contraentrega');
 
   const [tarjeta, setTarjeta] = useState({
     numero: '',
@@ -25,11 +33,7 @@ export default function CheckoutScreen() {
     titular: user?.nombre || ''
   });
 
-  const subtotal = (carrito || []).reduce((sum, item) => sum + item.producto.precio * item.cantidad, 0);
-  const costoEnvio = zonaSeleccionada.precio;
-  const total = subtotal + costoEnvio;
-
-  const procesarPagoStripeSeguro = async () => {
+  const procesarPagoStripeSeguro = async (montoCargar: number) => {
     if (tarjeta.numero.replace(/\s/g, '').length < 15) throw new Error('Número de tarjeta inválido');
     if (tarjeta.expiracion.length < 5) throw new Error('Fecha de expiración inválida (MM/AA)');
     if (tarjeta.cvc.length < 3) throw new Error('CVC inválido');
@@ -49,17 +53,14 @@ export default function CheckoutScreen() {
     setConfirmando(true);
 
     try {
-      let idTransaccion = null;
-      let estadoPago = 'pendiente';
-
-      if (metodoPago === 'tarjeta') {
-        const pago = await procesarPagoStripeSeguro();
-        idTransaccion = pago.transactionId;
-        estadoPago = 'pagado';
-      }
-
-      const zocaloOrderId = `ZOC-${Date.now()}`;
+      // 1. LÓGICA DE PAGO - FIANZA DE ENVÍO
+      const montoACobrarEnTarjeta = metodoPago === 'tarjeta' ? (subtotal + costoEnvio) : costoEnvio;
       
+      // Siempre cobramos al menos el envío por tarjeta para proteger al repartidor
+      await procesarPagoStripeSeguro(montoACobrarEnTarjeta);
+
+      // 2. CREAR ORDEN LOGÍSTICA
+      const zocaloOrderId = `ZOC-${Date.now()}`;
       const transportOrder = await createClincKargoOrder({
         pedidoId: zocaloOrderId,
         pickupAddress: 'Zócalo de la Ciudad de México, Centro Histórico, CDMX',
@@ -73,6 +74,7 @@ export default function CheckoutScreen() {
         customerPhone: user?.email
       });
 
+      // 3. INYECCIÓN A SUPABASE (SEGURO)
       const nuevoPedido = {
         id: zocaloOrderId,
         cliente_id: user?.id,
@@ -83,20 +85,21 @@ export default function CheckoutScreen() {
           cantidad: item.cantidad,
           precio: item.producto.precio
         })),
-        subtotal,
-        total,
+        subtotal: subtotal,
+        total: subtotal + costoEnvio,
         direccion_entrega: direccionEntrega,
-        metodo_pago: metodoPago,
-        status: metodoPago === 'tarjeta' ? 'preparando' : 'pendiente',
+        metodo_pago: esCompraSegura ? 'tarjeta_total' : 'hibrido_envio_tarjeta',
+        status: 'preparando', // Pasa a preparando directo porque ya pagó el envío
         clinckargo_id: transportOrder.success ? transportOrder.orderId : null,
       };
 
       await addPedido(nuevoPedido);
+      if (user?.id) await loadPedidos(user.id); // Forzar refresco
       clearCarrito();
       
-      const successMsg = metodoPago === 'tarjeta' 
-        ? '¡Pago exitoso! Tu pedido ya se está preparando. 💳' 
-        : '¡Pedido creado! Paga en efectivo al recibir. 🚚';
+      const successMsg = esCompraSegura 
+        ? `¡Pago de $${(subtotal + costoEnvio).toFixed(2)} exitoso! Tu pedido está en preparación.` 
+        : `¡Envío pagado! 🚚 Prepara $${subtotal.toFixed(2)} en EFECTIVO para el repartidor.`;
         
       if (Platform.OS === 'web') alert(successMsg);
       else Alert.alert('¡Éxito!', successMsg);
@@ -145,7 +148,7 @@ export default function CheckoutScreen() {
           style={[styles.input, { backgroundColor: colors.background, color: colors.text, borderColor: colors.border }]}
           value={direccionEntrega}
           onChangeText={setDireccionEntrega}
-          placeholder="Calle, número, colonia, referencias..."
+          placeholder="Calle, número exterior/interior, colonia..."
           placeholderTextColor={colors.subtext}
           multiline
         />
@@ -173,81 +176,104 @@ export default function CheckoutScreen() {
         <Text style={[styles.sectionTitle, { color: colors.text }]}>💵 Método de Pago</Text>
         
         <TouchableOpacity 
+          style={[
+            styles.option, 
+            { borderColor: colors.border, marginBottom: 10 }, 
+            metodoPago === 'contraentrega' && { borderColor: colors.primary, backgroundColor: colors.primary + '15' },
+            esCompraSegura && { opacity: 0.5 }
+          ]}
+          onPress={() => !esCompraSegura && setMetodoPago('contraentrega')}
+          disabled={esCompraSegura}
+        >
+          <Text style={{ fontSize: 20, marginRight: 10 }}>💵</Text>
+          <View style={{ flex: 1 }}>
+            <Text style={{ color: colors.text, fontWeight: metodoPago === 'contraentrega' ? 'bold' : 'normal' }}>
+              Efectivo al Recibir (Contraentrega)
+            </Text>
+            {esCompraSegura && (
+              <Text style={{ color: '#e74c3c', fontSize: 11, marginTop: 2 }}>
+                ⚠️ Desactivado por seguridad. Compras mayores a $30,000 requieren pago con tarjeta.
+              </Text>
+            )}
+          </View>
+          {metodoPago === 'contraentrega' && <Text style={{ color: colors.primary }}>✓</Text>}
+        </TouchableOpacity>
+
+        <TouchableOpacity 
           style={[styles.option, { borderColor: colors.border }, metodoPago === 'tarjeta' && { borderColor: colors.primary, backgroundColor: colors.primary + '15' }]}
           onPress={() => setMetodoPago('tarjeta')}
         >
           <Text style={{ fontSize: 20, marginRight: 10 }}>💳</Text>
-          <Text style={{ color: colors.text, flex: 1, fontWeight: metodoPago === 'tarjeta' ? 'bold' : 'normal' }}>Tarjeta (Stripe Seguro)</Text>
+          <Text style={{ color: colors.text, flex: 1, fontWeight: metodoPago === 'tarjeta' ? 'bold' : 'normal' }}>
+            Pagar todo ahora (Tarjeta)
+          </Text>
           {metodoPago === 'tarjeta' && <Text style={{ color: colors.primary }}>✓</Text>}
         </TouchableOpacity>
 
-        {metodoPago === 'tarjeta' && (
-          <View style={styles.cardForm}>
+        <View style={styles.cardForm}>
+          <Text style={{ color: colors.primary, fontWeight: 'bold', marginBottom: 10 }}>
+            {metodoPago === 'tarjeta' 
+              ? `Pago total seguro: $${(subtotal + costoEnvio).toFixed(2)}` 
+              : `Paga el envío ahora ($${costoEnvio.toFixed(2)}) para asegurar a tu repartidor. El resto ($${subtotal.toFixed(2)}) se paga en efectivo al recibir.`}
+          </Text>
+
+          <TextInput
+            style={[styles.input, { backgroundColor: colors.background, color: colors.text, borderColor: colors.border, marginBottom: 10 }]}
+            placeholder="Nombre del Titular"
+            placeholderTextColor={colors.subtext}
+            value={tarjeta.titular}
+            onChangeText={(text) => setTarjeta({...tarjeta, titular: text})}
+          />
+          <TextInput
+            style={[styles.input, { backgroundColor: colors.background, color: colors.text, borderColor: colors.border, marginBottom: 10 }]}
+            placeholder="0000 0000 0000 0000"
+            placeholderTextColor={colors.subtext}
+            keyboardType="numeric"
+            maxLength={19}
+            value={tarjeta.numero}
+            onChangeText={formatCardNumber}
+          />
+          <View style={{ flexDirection: 'row', gap: 10 }}>
             <TextInput
-              style={[styles.input, { backgroundColor: colors.background, color: colors.text, borderColor: colors.border, marginBottom: 10 }]}
-              placeholder="Nombre del Titular"
-              placeholderTextColor={colors.subtext}
-              value={tarjeta.titular}
-              onChangeText={(text) => setTarjeta({...tarjeta, titular: text})}
-            />
-            <TextInput
-              style={[styles.input, { backgroundColor: colors.background, color: colors.text, borderColor: colors.border, marginBottom: 10 }]}
-              placeholder="0000 0000 0000 0000"
+              style={[styles.input, { flex: 1, backgroundColor: colors.background, color: colors.text, borderColor: colors.border }]}
+              placeholder="MM/AA"
               placeholderTextColor={colors.subtext}
               keyboardType="numeric"
-              maxLength={19}
-              value={tarjeta.numero}
-              onChangeText={formatCardNumber}
+              maxLength={5}
+              value={tarjeta.expiracion}
+              onChangeText={formatExpDate}
             />
-            <View style={{ flexDirection: 'row', gap: 10 }}>
-              <TextInput
-                style={[styles.input, { flex: 1, backgroundColor: colors.background, color: colors.text, borderColor: colors.border }]}
-                placeholder="MM/AA"
-                placeholderTextColor={colors.subtext}
-                keyboardType="numeric"
-                maxLength={5}
-                value={tarjeta.expiracion}
-                onChangeText={formatExpDate}
-              />
-              <TextInput
-                style={[styles.input, { flex: 1, backgroundColor: colors.background, color: colors.text, borderColor: colors.border }]}
-                placeholder="CVC"
-                placeholderTextColor={colors.subtext}
-                keyboardType="numeric"
-                maxLength={4}
-                secureTextEntry
-                value={tarjeta.cvc}
-                onChangeText={(text) => setTarjeta({...tarjeta, cvc: text.replace(/\D/g, '')})}
-              />
-            </View>
-            <View style={styles.secureBadge}>
-              <Text style={{ color: '#27ae60', fontSize: 12, fontWeight: 'bold' }}>🔒 Pago Encriptado por Stripe 256-bit</Text>
-            </View>
+            <TextInput
+              style={[styles.input, { flex: 1, backgroundColor: colors.background, color: colors.text, borderColor: colors.border }]}
+              placeholder="CVC"
+              placeholderTextColor={colors.subtext}
+              keyboardType="numeric"
+              maxLength={4}
+              secureTextEntry
+              value={tarjeta.cvc}
+              onChangeText={(text) => setTarjeta({...tarjeta, cvc: text.replace(/\D/g, '')})}
+            />
           </View>
-        )}
-
-        <TouchableOpacity 
-          style={[styles.option, { borderColor: colors.border, marginTop: 10 }, metodoPago === 'contraentrega' && { borderColor: colors.primary, backgroundColor: colors.primary + '15' }]}
-          onPress={() => setMetodoPago('contraentrega')}
-        >
-          <Text style={{ fontSize: 20, marginRight: 10 }}>💵</Text>
-          <Text style={{ color: colors.text, flex: 1, fontWeight: metodoPago === 'contraentrega' ? 'bold' : 'normal' }}>Efectivo al Recibir</Text>
-          {metodoPago === 'contraentrega' && <Text style={{ color: colors.primary }}>✓</Text>}
-        </TouchableOpacity>
+          <View style={styles.secureBadge}>
+            <Text style={{ color: '#27ae60', fontSize: 12, fontWeight: 'bold' }}>🔒 Encriptación Stripe 256-bit</Text>
+          </View>
+        </View>
       </View>
 
       <View style={[styles.resumen, { backgroundColor: colors.card }]}>
         <View style={styles.row}>
-          <Text style={{ color: colors.subtext }}>Subtotal Productos</Text>
+          <Text style={{ color: colors.subtext }}>Productos</Text>
           <Text style={{ color: colors.text }}>${subtotal.toFixed(2)}</Text>
         </View>
         <View style={styles.row}>
-          <Text style={{ color: colors.subtext }}>Logística ClincKargo</Text>
+          <Text style={{ color: colors.subtext }}>Logística (ClincKargo)</Text>
           <Text style={{ color: colors.text }}>${costoEnvio.toFixed(2)}</Text>
         </View>
         <View style={[styles.row, { marginTop: 10, borderTopWidth: 1, borderTopColor: colors.border, paddingTop: 10 }]}>
-          <Text style={{ color: colors.text, fontWeight: 'bold', fontSize: 18 }}>Total a Pagar</Text>
-          <Text style={{ color: colors.primary, fontWeight: 'bold', fontSize: 18 }}>${total.toFixed(2)}</Text>
+          <Text style={{ color: colors.text, fontWeight: 'bold', fontSize: 18 }}>Cargar a Tarjeta Hoy</Text>
+          <Text style={{ color: colors.primary, fontWeight: 'bold', fontSize: 18 }}>
+            ${(metodoPago === 'tarjeta' ? (subtotal + costoEnvio) : costoEnvio).toFixed(2)}
+          </Text>
         </View>
 
         <TouchableOpacity 
@@ -259,7 +285,7 @@ export default function CheckoutScreen() {
             <ActivityIndicator color="#fff" />
           ) : (
             <Text style={styles.confirmBtnText}>
-              {metodoPago === 'tarjeta' ? `Pagar $${total.toFixed(2)} Ahora` : 'Confirmar Pedido'}
+              Pagar ${(metodoPago === 'tarjeta' ? (subtotal + costoEnvio) : costoEnvio).toFixed(2)}
             </Text>
           )}
         </TouchableOpacity>
