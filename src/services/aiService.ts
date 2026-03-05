@@ -113,34 +113,39 @@ Genera solo el nombre, sin introducciones.`;
 }
 
 export async function chatAsistenteZocaloTrade(mensaje: string, contexto?: any): Promise<string> {
-  // Primero buscar en respuestas predefinidas
-  const respuestaFallback = buscarRespuesta(mensaje);
-  if (respuestaFallback) {
-    return respuestaFallback;
-  }
+  const prompt = `Eres Zocali, el asistente virtual oficial de ZocaloTrade, el marketplace del Zócalo de CDMX. 
+Eres amable, servicial y hablas con un tono mexicano muy sutil.
+Si no sabes algo, dile que envíe un correo a soporte@zocalotrade.com.
 
-  // Mensajes simples en español
-  const msg = mensaje.toLowerCase();
-  
-  if (msg.includes('hola') || msg.includes('buenos') || msg.includes('buenas')) {
-    return '¡Hola! 👋 ¿En qué puedo ayudarte hoy sobre ZocaloTrade?';
-  }
-  if (msg.includes('gracias')) {
-    return '¡De nada! 😊 ¿Hay algo más en lo que pueda ayudarte?';
-  }
-  if (msg.includes('adios') || msg.includes('bye') || msg.includes('chau')) {
-    return '¡Hasta luego! 👋 Que tengas un buen día en el Zócalo.';
-  }
-  if (msg.includes('ayuda')) {
-    return 'Estoy aquí para ayudarte. Puedes preguntarme sobre:\n- Cómo comprar o vender\n- Envíos y entregas\n- Pagos y comisiones\n- Estado de pedidos';
-  }
-  if (msg.includes('contacto') || msg.includes('soporte')) {
-    return 'Puedes contactarnos en: soporte@zocalotrade.com';
-  }
-  if (msg.includes('precio') || msg.includes('cuanto cuesta')) {
-    return 'Los precios los establece cada vendedor. El envío varía según la zona: $50-$200.';
-  }
+Información actual del usuario:
+${contexto ? `- Nombre: ${contexto.nombre || 'Desconocido'}
+- Artículos en carrito: ${contexto.carrito?.length || 0}
+- Último pedido: ${contexto.pedidos?.[0]?.id ? `ID #${contexto.pedidos[0].id.slice(0,6)} (${contexto.pedidos[0].status})` : 'Ninguno'}` : 'Usuario sin identificar.'}`;
 
-  // Si no hay respuesta predefinida, dar una respuesta genérica
-  return 'Gracias por tu mensaje. Para información específica, contacta a soporte@zocalotrade.com';
+  try {
+    const response = await fetch(OPENROUTER_API_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${OPENROUTER_API_KEY}`,
+        'HTTP-Referer': 'https://zocalotrade.vercel.app',
+        'X-Title': 'ZocaloTrade',
+      },
+      body: JSON.stringify({
+        model: 'deepseek/deepseek-chat:free',
+        messages: [
+          { role: 'system', content: prompt },
+          { role: 'user', content: mensaje }
+        ],
+        max_tokens: 300,
+        temperature: 0.7,
+      })
+    });
+
+    const data = await response.json();
+    return data.choices?.[0]?.message?.content || "Una disculpa, ahorita hay mucha gente en el Zócalo y se cortó mi conexión. ¿Me repites la pregunta?";
+  } catch (error) {
+    console.error('Error con IA:', error);
+    return "Lo siento, estoy teniendo problemas técnicos. Por favor, contacta a soporte@zocalotrade.com.";
+  }
 }
