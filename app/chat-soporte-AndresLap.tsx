@@ -103,7 +103,11 @@ export default function ChatSoporteScreen() {
     if (isAiMode) {
       setTyping(true);
       try {
-        const respuestaAi = await chatAsistenteZocaloTrade(texto);
+        const respuestaAi = await chatAsistenteZocaloTrade(texto, {
+          nombre: user.nombre,
+          carritoCount: 1, // hardcoded mock para seguridad de parseo por ahora
+          ultimoPedido: null
+        });
         await supabase.from('mensajes').insert({
           emisor_id: SYSTEM_ID,
           receptor_id: user.id,
