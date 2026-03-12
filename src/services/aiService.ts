@@ -105,7 +105,7 @@ Genera solo el nombre, sin introducciones.`;
     });
 
     const data = await response.json();
-    return data.choices?.[0]?.message?.content || nombreProducto;
+    return data.choices?.[0]?.message?.content || descripcion;
   } catch (error) {
     console.error('Error generating name:', error);
     return '';

@@ -43,9 +43,9 @@ export default function CheckoutScreen() {
     return { success: true, transactionId: `pi_stripe_${Date.now()}` };
   };
 
-  const CONFIRMAR_PEDIDO_AHORA = async () => {
+  const handleConfirmarPedido = async () => {
     if (!direccionEntrega) {
-      alert('Falta dirección');
+      Alert.alert('Error', 'Por favor ingresa tu dirección de entrega');
       return;
     }
 
@@ -53,7 +53,7 @@ export default function CheckoutScreen() {
 
     try {
       const nuevoPedido = {
-        cliente_id: user?.id || 'invitado',
+        cliente_id: user?.id || null,
         tienda_id: 'f859b36a-424e-498a-a703-edc46ddeb9ac',
         productos: JSON.stringify(carrito.map(item => ({
           id: item.producto.id,
@@ -68,21 +68,19 @@ export default function CheckoutScreen() {
         status: 'preparando',
       };
 
-      alert('Guardando... usuario: ' + (user?.id || 'invitado'));
       const result: any = await addPedido(nuevoPedido);
       
       if (!result?.success) {
-        alert('Error: ' + result?.error);
+        Alert.alert('Error', 'No se pudo guardar el pedido');
         setConfirmando(false);
         return;
       }
       
-      alert('¡Pedido guardado!');
       if (user?.id) await loadPedidos(user.id);
       clearCarrito();
       router.replace('/(tabs)/pedidos');
     } catch (error: any) {
-      alert('Error: ' + error.message);
+      Alert.alert('Error', 'Ocurrió un error al procesar el pedido');
     } finally {
       setConfirmando(false);
     }
@@ -252,7 +250,7 @@ export default function CheckoutScreen() {
 
         <TouchableOpacity 
           style={[styles.confirmBtn, { backgroundColor: colors.primary }, confirmando && { opacity: 0.7 }]}
-          onPress={CONFIRMAR_PEDIDO_AHORA}
+          onPress={handleConfirmarPedido}
           disabled={confirmando}
         >
           {confirmando ? (

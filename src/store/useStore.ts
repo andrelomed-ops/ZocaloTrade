@@ -96,7 +96,7 @@ interface AppState {
   addToCarrito: (p: any, cantidad?: number) => void;
   removeFromCarrito: (id: string) => void;
   clearCarrito: () => void;
-  addPedido: (p: any) => Promise<void>;
+  addPedido: (p: any) => Promise<any>;
   loadPedidos: (userId: string) => Promise<void>;
   updatePedidoStatus: (id: string, status: string) => Promise<void>;
   loadUserExtras: (userId: string) => Promise<void>;
@@ -183,18 +183,13 @@ export const useStore = create<AppState>((set, get) => ({
 
   addPedido: async (pedido: any) => {
     try {
-      console.log('=== ADD PEDIDO ===');
-      console.log('Inserting pedido:', pedido);
       const { data, error } = await supabase.from(TABLES.PEDIDOS).insert(pedido).select().single();
       if (error) {
-        console.error('Error inserting pedido:', error);
         return { success: false, error: error.message };
       }
-      console.log('Pedido inserted:', data);
       if (data) set((s) => ({ pedidos: [data, ...s.pedidos] }));
       return { success: true, data };
     } catch (e: any) {
-      console.error('Exception adding pedido:', e);
       return { success: false, error: e.message };
     }
   },

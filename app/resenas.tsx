@@ -1,4 +1,4 @@
-import { View, Text, FlatList, TouchableOpacity, Image, StyleSheet, TextInput, Star } from 'react-native';
+import { View, Text, FlatList, TouchableOpacity, Image, StyleSheet, TextInput } from 'react-native';
 import { useState } from 'react';
 import { router } from 'expo-router';
 
@@ -17,7 +17,7 @@ const MOCK_RESENAS: Resena[] = [
   { id: '1', usuario: 'María G.', avatar: '👩', rating: 5, comentario: 'Excelente producto, muy recomendable. Llegó rápido y bien empacado.', fecha: '15/01/2024', respuesta: '¡Gracias! Nos alegra que te haya gustado.', helpful: 12 },
   { id: '2', usuario: 'Carlos R.', avatar: '👨', rating: 4, comentario: 'Muy bueno, pero el envío tardó un poco más de lo esperado.', fecha: '14/01/2024', helpful: 5 },
   { id: '3', usuario: 'Ana L.', avatar: '👩', rating: 5, comentario: 'Perfecto para regalar. Muy artesanal y de buena calidad.', fecha: '12/01/2024', helpful: 8 },
-  { id: '4', usuario: 'Pedro M.', avatar: '👨', rating: 3, comentarios: 'Producto correcto, pero la descripción no era muy precisa.', fecha: '10/01/2024', helpful: 2 },
+  { id: '4', usuario: 'Pedro M.', avatar: '👨', rating: 3, comentario: 'Producto correcto, pero la descripción no era muy precisa.', fecha: '10/01/2024', helpful: 2 },
 ];
 
 export default function ResenasScreen() {
