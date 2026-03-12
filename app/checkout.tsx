@@ -44,49 +44,41 @@ export default function CheckoutScreen() {
   };
 
   const handleConfirmarPedido = async () => {
+    alert('INICIO v3 - ' + new Date().getTime());
     if (!direccionEntrega) {
-      alert('Por favor ingresa tu dirección exacta para el repartidor.');
+      alert('Falta dirección');
       return;
     }
 
     setConfirmando(true);
 
     try {
-      // SIMULAR PAGO PARA PRUEBAS
-      const zocaloOrderId = `ZOC-${Date.now()}`;
-      
       const nuevoPedido = {
-        id: zocaloOrderId,
-        cliente_id: user?.id,
-        tienda_id: 'artesania-del-zocalo', // ID fijo para pruebas
-        productos: JSON.stringify(carrito.map(item => ({
-          id: item.producto.id,
-          nombre: item.producto.nombre,
-          cantidad: item.cantidad,
-          precio: item.producto.precio
-        }))),
-        subtotal: subtotal,
-        total: subtotal + costoEnvio,
-        direccion_entrega: direccionEntrega,
-        metodo_pago: metodoPago === 'tarjeta' ? 'tarjeta' : 'efectivo',
+        cliente_id: 'test-user-id',
+        tienda_id: 'test-tienda-id',
+        productos: '[{"nombre":"test"}]',
+        subtotal: 100,
+        total: 150,
+        direccion_entrega: 'test address',
+        metodo_pago: 'efectivo',
         status: 'preparando',
       };
 
+      alert('Intentando guardar...');
       const result: any = await addPedido(nuevoPedido);
+      alert('Resultado: ' + JSON.stringify(result));
       
       if (!result?.success) {
-        alert('Error: ' + (result?.error || 'No se guardó'));
+        alert('Error guardando: ' + result?.error);
         setConfirmando(false);
         return;
       }
       
-      if (user?.id) await loadPedidos(user.id);
+      alert('ÉXITO!');
       clearCarrito();
-      
-      alert('¡Pedido guardado! ID: ' + zocaloOrderId);
       router.replace('/(tabs)/pedidos');
     } catch (error: any) {
-      alert('Error: ' + (error.message || 'Error desconocido'));
+      alert('Excepción: ' + error.message);
     } finally {
       setConfirmando(false);
     }
