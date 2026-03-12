@@ -42,6 +42,11 @@ export interface Pedido {
   direccion_entrega: string;
   created_at: string;
   clinckargo_id?: string | null;
+  comision: number;
+  // Alias para compatibilidad
+  createdAt?: string;
+  tiendaId?: string;
+  direccionEntrega?: string;
 }
 
 export const CATEGORIAS = ['Todos', 'Comida', 'Bebidas', 'Artesanía', 'Ropa', 'Accesorios'];
@@ -93,6 +98,7 @@ interface AppState {
   setDarkMode: (darkMode: boolean) => void;
   setUserLocation: (loc: { lat: number; lng: number } | null) => void;
   toggleFavorito: (id: string) => void;
+  addProducto: (producto: any) => Promise<void>;
   addToCarrito: (p: any, cantidad?: number) => void;
   removeFromCarrito: (id: string) => void;
   clearCarrito: () => void;
@@ -156,6 +162,14 @@ export const useStore = create<AppState>((set, get) => ({
       if (profile?.favoritos) set({ favoritos: profile.favoritos });
       const { data: notifs } = await supabase.from('notificaciones').select('*').eq('usuario_id', userId).order('created_at', { ascending: false });
       if (notifs) set({ notificaciones: notifs });
+    } catch (e) {}
+  },
+
+  addProducto: async (producto: any) => {
+    try {
+      const { data, error } = await supabase.from(TABLES.PRODUCTOS).insert(producto).select().single();
+      if (error) throw error;
+      if (data) set((s) => ({ productos: [...s.productos, data] }));
     } catch (e) {}
   },
 

@@ -13,7 +13,7 @@ const STATUS_COLORS: any = {
 };
 
 export default function PedidosVendedorScreen() {
-  const { pedidos, updatePedido, rol } = useStore();
+  const { pedidos, updatePedidoStatus, rol } = useStore();
   const [filtro, setFiltro] = useState<'todos' | 'pendiente' | 'preparando' | 'listo'>('todos');
 
   const misPedidos = pedidos.filter(p => p.tiendaId === 'mi_tienda');
@@ -38,7 +38,7 @@ export default function PedidosVendedorScreen() {
       `¿Cambiar el estado a "${nuevoStatus}"?`,
       [
         { text: 'Cancelar', style: 'cancel' },
-        { text: 'Confirmar', onPress: () => updatePedido(pedido.id, { status: nuevoStatus }) },
+        { text: 'Confirmar', onPress: () => updatePedidoStatus(pedido.id, nuevoStatus) },
       ]
     );
   };
