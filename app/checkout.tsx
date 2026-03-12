@@ -45,70 +45,48 @@ export default function CheckoutScreen() {
 
   const handleConfirmarPedido = async () => {
     if (!direccionEntrega) {
-      const msg = 'Por favor ingresa tu dirección exacta para el repartidor.';
-      if (Platform.OS === 'web') alert(msg); else Alert.alert('Aviso', msg);
+      alert('Por favor ingresa tu dirección exacta para el repartidor.');
       return;
     }
 
     setConfirmando(true);
 
     try {
-      // 1. LÓGICA DE PAGO - FIANZA DE ENVÍO
-      const montoACobrarEnTarjeta = metodoPago === 'tarjeta' ? (subtotal + costoEnvio) : costoEnvio;
-      
-      // Siempre cobramos al menos el envío por tarjeta para proteger al repartidor
-      await procesarPagoStripeSeguro(montoACobrarEnTarjeta);
-
-      // 2. CREAR ORDEN LOGÍSTICA
+      // SIMULAR PAGO PARA PRUEBAS
       const zocaloOrderId = `ZOC-${Date.now()}`;
-      const transportOrder = await createClincKargoOrder({
-        pedidoId: zocaloOrderId,
-        pickupAddress: 'Zócalo de la Ciudad de México, Centro Histórico, CDMX',
-        dropoffAddress: direccionEntrega,
-        items: carrito.map(item => ({
-          name: item.producto.nombre,
-          size: item.producto.precio < 500 ? 'Mediano' : 'Grande',
-          quantity: item.cantidad
-        })),
-        customerName: user?.nombre,
-        customerPhone: user?.email
-      });
-
-      // 3. INYECCIÓN A SUPABASE (SEGURO)
+      
       const nuevoPedido = {
         id: zocaloOrderId,
         cliente_id: user?.id,
-        tienda_id: carrito[0]?.producto.tiendaId,
-        productos: carrito.map(item => ({
+        tienda_id: 'artesania-del-zocalo', // ID fijo para pruebas
+        productos: JSON.stringify(carrito.map(item => ({
           id: item.producto.id,
           nombre: item.producto.nombre,
           cantidad: item.cantidad,
           precio: item.producto.precio
-        })),
+        }))),
         subtotal: subtotal,
         total: subtotal + costoEnvio,
         direccion_entrega: direccionEntrega,
-        metodo_pago: esCompraSegura ? 'tarjeta_total' : 'hibrido_envio_tarjeta',
-        status: 'preparando', // Pasa a preparando directo porque ya pagó el envío
-        clinckargo_id: transportOrder.success ? transportOrder.orderId : null,
+        metodo_pago: metodoPago === 'tarjeta' ? 'tarjeta' : 'efectivo',
+        status: 'preparando',
       };
 
-      await addPedido(nuevoPedido);
-      if (user?.id) await loadPedidos(user.id); // Forzar refresco
+      const result: any = await addPedido(nuevoPedido);
+      
+      if (!result?.success) {
+        alert('Error: ' + (result?.error || 'No se guardó'));
+        setConfirmando(false);
+        return;
+      }
+      
+      if (user?.id) await loadPedidos(user.id);
       clearCarrito();
       
-      const successMsg = esCompraSegura 
-        ? `¡Pago de $${(subtotal + costoEnvio).toFixed(2)} exitoso! Tu pedido está en preparación.` 
-        : `¡Envío pagado! 🚚 Prepara $${subtotal.toFixed(2)} en EFECTIVO para el repartidor.`;
-        
-      if (Platform.OS === 'web') alert(successMsg);
-      else Alert.alert('¡Éxito!', successMsg);
-      
-      router.replace(`/(tabs)/pedidos`);
+      alert('¡Pedido guardado! ID: ' + zocaloOrderId);
+      router.replace('/(tabs)/pedidos');
     } catch (error: any) {
-      const errorMsg = error.message || 'Ocurrió un error al procesar tu solicitud.';
-      if (Platform.OS === 'web') alert(`Error: ${errorMsg}`);
-      else Alert.alert('Error', errorMsg);
+      alert('Error: ' + (error.message || 'Error desconocido'));
     } finally {
       setConfirmando(false);
     }

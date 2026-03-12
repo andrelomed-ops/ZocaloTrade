@@ -121,7 +121,7 @@ export const useStore = create<AppState>((set, get) => ({
   userLocation: null,
   
   setUser: (user) => {
-    const adminEmails = ['andrelomed@gmail.com'];
+    const adminEmails = ['andrelomed@gmail.com', 'zocalotrade@gmail.com'];
     set({ 
       user, 
       isAdmin: user ? adminEmails.includes(user.email) : false 
@@ -183,9 +183,20 @@ export const useStore = create<AppState>((set, get) => ({
 
   addPedido: async (pedido: any) => {
     try {
-      const { data } = await supabase.from(TABLES.PEDIDOS).insert(pedido).select().single();
+      console.log('=== ADD PEDIDO ===');
+      console.log('Inserting pedido:', pedido);
+      const { data, error } = await supabase.from(TABLES.PEDIDOS).insert(pedido).select().single();
+      if (error) {
+        console.error('Error inserting pedido:', error);
+        return { success: false, error: error.message };
+      }
+      console.log('Pedido inserted:', data);
       if (data) set((s) => ({ pedidos: [data, ...s.pedidos] }));
-    } catch (e) {}
+      return { success: true, data };
+    } catch (e: any) {
+      console.error('Exception adding pedido:', e);
+      return { success: false, error: e.message };
+    }
   },
 
   loadPedidos: async (userId: string) => {
