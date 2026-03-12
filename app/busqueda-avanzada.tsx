@@ -177,7 +177,7 @@ export default function BusquedaAvanzadaScreen() {
             onPress={() => router.push(`/producto/${item.id}`)}
           >
             <Image 
-              source={{ uri: item.fotos?.[0] || item.foto }} 
+              source={{ uri: item.fotos?.[0] || 'https://picsum.photos/400/400' }} 
               style={styles.productoImage}
             />
             <Text style={styles.productoNombre} numberOfLines={1}>{item.nombre}</Text>
