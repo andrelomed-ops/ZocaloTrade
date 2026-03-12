@@ -94,15 +94,23 @@ export default function PedidoScreen() {
 
       <View style={[styles.section, { backgroundColor: colors.card }]}>
         <Text style={[styles.sectionTitle, { color: colors.text }]}>🛍️ Productos</Text>
-        {(pedido.productos || []).map((item: any, index: number) => (
-          <View key={index} style={[styles.productoItem, { borderBottomColor: colors.border }]}>
-            <View style={{ flex: 1 }}>
-              <Text style={{ color: colors.text, fontWeight: 'bold' }}>{item.nombre || item.producto?.nombre}</Text>
-              <Text style={{ color: colors.subtext, fontSize: 12 }}>Cantidad: {item.cantidad}</Text>
+        {(() => {
+          let productosArray = [];
+          try {
+            productosArray = typeof pedido.productos === 'string' ? JSON.parse(pedido.productos) : (pedido.productos || []);
+          } catch (e) {
+            productosArray = [];
+          }
+          return productosArray.map((item: any, index: number) => (
+            <View key={index} style={[styles.productoItem, { borderBottomColor: colors.border }]}>
+              <View style={{ flex: 1 }}>
+                <Text style={{ color: colors.text, fontWeight: 'bold' }}>{item.nombre || item.producto?.nombre}</Text>
+                <Text style={{ color: colors.subtext, fontSize: 12 }}>Cantidad: {item.cantidad}</Text>
+              </View>
+              <Text style={{ color: colors.text }}>${(item.precio || item.producto?.precio || 0) * item.cantidad}</Text>
             </View>
-            <Text style={{ color: colors.text }}>${(item.precio || item.producto?.precio || 0) * item.cantidad}</Text>
-          </View>
-        ))}
+          ));
+        })()}
       </View>
 
       <View style={[styles.section, { backgroundColor: colors.card }]}>

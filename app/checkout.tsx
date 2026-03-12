@@ -43,8 +43,7 @@ export default function CheckoutScreen() {
     return { success: true, transactionId: `pi_stripe_${Date.now()}` };
   };
 
-  const handleConfirmarPedido = async () => {
-    alert('INICIO v3 - ' + new Date().getTime());
+  const CONFIRMAR_PEDIDO_AHORA = async () => {
     if (!direccionEntrega) {
       alert('Falta dirección');
       return;
@@ -54,31 +53,36 @@ export default function CheckoutScreen() {
 
     try {
       const nuevoPedido = {
-        cliente_id: 'test-user-id',
-        tienda_id: 'test-tienda-id',
-        productos: '[{"nombre":"test"}]',
-        subtotal: 100,
-        total: 150,
-        direccion_entrega: 'test address',
-        metodo_pago: 'efectivo',
+        cliente_id: user?.id || 'invitado',
+        tienda_id: 'f859b36a-424e-498a-a703-edc46ddeb9ac',
+        productos: JSON.stringify(carrito.map(item => ({
+          id: item.producto.id,
+          nombre: item.producto.nombre,
+          cantidad: item.cantidad,
+          precio: item.producto.precio
+        }))),
+        subtotal: subtotal,
+        total: subtotal + costoEnvio,
+        direccion_entrega: direccionEntrega,
+        metodo_pago: metodoPago === 'tarjeta' ? 'tarjeta' : 'efectivo',
         status: 'preparando',
       };
 
-      alert('Intentando guardar...');
+      alert('Guardando... usuario: ' + (user?.id || 'invitado'));
       const result: any = await addPedido(nuevoPedido);
-      alert('Resultado: ' + JSON.stringify(result));
       
       if (!result?.success) {
-        alert('Error guardando: ' + result?.error);
+        alert('Error: ' + result?.error);
         setConfirmando(false);
         return;
       }
       
-      alert('ÉXITO!');
+      alert('¡Pedido guardado!');
+      if (user?.id) await loadPedidos(user.id);
       clearCarrito();
       router.replace('/(tabs)/pedidos');
     } catch (error: any) {
-      alert('Excepción: ' + error.message);
+      alert('Error: ' + error.message);
     } finally {
       setConfirmando(false);
     }
@@ -248,7 +252,7 @@ export default function CheckoutScreen() {
 
         <TouchableOpacity 
           style={[styles.confirmBtn, { backgroundColor: colors.primary }, confirmando && { opacity: 0.7 }]}
-          onPress={handleConfirmarPedido}
+          onPress={CONFIRMAR_PEDIDO_AHORA}
           disabled={confirmando}
         >
           {confirmando ? (
