@@ -28,11 +28,13 @@ export interface InfoProducto {
 }
 
 const TARIFAS_CLINKARGO = {
-  base: 89,
-  por_km: 8,
-  min: 45,
-  max: 800,
-  umbralGratis: 500,
+  base: 35,
+  por_km: 5,
+  min: 25,
+  max: 500,
+  umbralGratis: 800,
+  descuento20: 250,
+  descuento10: 150,
 };
 
 const ZOCALO_DEFAULT: Ubicacion = { lat: 19.4326, lng: -99.1332 };
