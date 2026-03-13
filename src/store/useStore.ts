@@ -1,5 +1,8 @@
 import { create } from 'zustand';
 import { supabase, TABLES } from '../services/supabase';
+import { saveToCache, getFromCache } from '../services/offlineCache';
+import { UserPoints, BADGES, calcularNivel, calcularPuntosPorCompra, getNombreNivel, getProximoNivel, getBadgesDesbloqueados } from '../services/gamificacion';
+import { getRecomendaciones, getProductosPopulares, getNuevosProductos, getOfertasDelDia, buscarProductosSimilares } from '../services/recomendaciones';
 
 export interface Producto {
   id: string;
@@ -43,6 +46,11 @@ export interface Pedido {
   created_at: string;
   clinckargo_id?: string | null;
   comision: number;
+  costo_envio?: number;
+  distancia?: number;
+  latitud_entrega?: number | null;
+  longitud_entrega?: number | null;
+  zona?: string;
   // Alias para compatibilidad
   createdAt?: string;
   tiendaId?: string;
@@ -91,6 +99,7 @@ interface AppState {
   darkMode: boolean;
   colors: any;
   userLocation: { lat: number; lng: number } | null;
+  userPoints: UserPoints;
   
   initialize: () => Promise<void>;
   setUser: (user: User | null) => void;
@@ -107,8 +116,12 @@ interface AppState {
   updatePedidoStatus: (id: string, status: string) => Promise<void>;
   loadUserExtras: (userId: string) => Promise<void>;
   addResena: (resena: any) => Promise<void>;
+  loadResenas: (productoId: string) => Promise<any[]>;
   loadNotificaciones: (userId: string) => Promise<void>;
   markAsRead: (id: string) => Promise<void>;
+  getRecomendaciones: () => Promise<any[]>;
+  getPopulares: () => Promise<any[]>;
+  getNuevos: () => Promise<any[]>;
 }
 
 export const useStore = create<AppState>((set, get) => ({
@@ -125,6 +138,14 @@ export const useStore = create<AppState>((set, get) => ({
   darkMode: false,
   colors: LIGHT_COLORS,
   userLocation: null,
+  userPoints: {
+    puntos: 0,
+    nivel: 1,
+    badges: [],
+    totalPedidos: 0,
+    totalGastado: 0,
+    resenasEscritas: 0,
+  },
   
   setUser: (user) => {
     const adminEmails = ['andrelomed@gmail.com', 'zocalotrade@gmail.com'];
@@ -143,12 +164,28 @@ export const useStore = create<AppState>((set, get) => ({
   initialize: async () => {
     if (get().initialized) return;
     try {
-      const { data: p } = await supabase.from(TABLES.PRODUCTOS).select('*').eq('activo', true);
-      const { data: t } = await supabase.from(TABLES.TIENDAS).select('*').eq('activa', true);
+      let productosData = null;
+      let tiendasData = null;
+      
+      try {
+        const { data: p } = await supabase.from(TABLES.PRODUCTOS).select('*').eq('activo', true);
+        const { data: t } = await supabase.from(TABLES.TIENDAS).select('*').eq('activa', true);
+        productosData = p;
+        tiendasData = t;
+        
+        if (p) await saveToCache('productos', p);
+        if (t) await saveToCache('tiendas', t);
+      } catch (e) {
+        console.log('Online fetch failed, trying cache...');
+        productosData = await getFromCache('productos');
+        tiendasData = await getFromCache('tiendas');
+      }
       
       set({
-        productos: (p && p.length > 0) ? p.map((item: any) => ({ ...item, tiendaId: item.tienda_id, fotos: item.fotos || ['https://picsum.photos/400/400'], disponible: item.activo })) : MOCK_PRODUCTOS,
-        tiendas: (t && t.length > 0) ? t : MOCK_TIENDAS,
+        productos: (productosData && productosData.length > 0) 
+          ? productosData.map((item: any) => ({ ...item, tiendaId: item.tienda_id, fotos: item.fotos || ['https://picsum.photos/400/400'], disponible: item.activo })) 
+          : MOCK_PRODUCTOS,
+        tiendas: (tiendasData && tiendasData.length > 0) ? tiendasData : MOCK_TIENDAS,
         initialized: true,
       });
     } catch (e) {
@@ -158,8 +195,20 @@ export const useStore = create<AppState>((set, get) => ({
 
   loadUserExtras: async (userId: string) => {
     try {
-      const { data: profile } = await supabase.from('perfiles').select('favoritos').eq('id', userId).maybeSingle();
-      if (profile?.favoritos) set({ favoritos: profile.favoritos });
+      const { data: profile } = await supabase.from('perfiles').select('favoritos, puntos, nivel, badges, total_pedidos, total_gastado, resenas_escritas').eq('id', userId).maybeSingle();
+      if (profile) {
+        set({ 
+          favoritos: profile.favoritos || [],
+          userPoints: {
+            puntos: profile.puntos || 0,
+            nivel: profile.nivel || 1,
+            badges: profile.badges || [],
+            totalPedidos: profile.total_pedidos || 0,
+            totalGastado: profile.total_gastado || 0,
+            resenasEscritas: profile.resenas_escritas || 0,
+          }
+        });
+      }
       const { data: notifs } = await supabase.from('notificaciones').select('*').eq('usuario_id', userId).order('created_at', { ascending: false });
       if (notifs) set({ notificaciones: notifs });
     } catch (e) {}
@@ -201,7 +250,35 @@ export const useStore = create<AppState>((set, get) => ({
       if (error) {
         return { success: false, error: error.message };
       }
-      if (data) set((s) => ({ pedidos: [data, ...s.pedidos] }));
+      if (data) {
+        set((s) => ({ pedidos: [data, ...s.pedidos] }));
+        
+        if (pedido.cliente_id) {
+          const puntosGanados = calcularPuntosPorCompra(pedido.total);
+          const { data: profile } = await supabase.from('perfiles').select('puntos, nivel, total_pedidos, total_gastado').eq('id', pedido.cliente_id).maybeSingle();
+          const nuevosPuntos = (profile?.puntos || 0) + puntosGanados;
+          const nuevosPedidos = (profile?.total_pedidos || 0) + 1;
+          const nuevoGastado = (profile?.total_gastado || 0) + pedido.total;
+          const nuevoNivel = calcularNivel(nuevosPuntos);
+          
+          await supabase.from('perfiles').update({
+            puntos: nuevosPuntos,
+            nivel: nuevoNivel,
+            total_pedidos: nuevosPedidos,
+            total_gastado: nuevoGastado
+          }).eq('id', pedido.cliente_id);
+          
+          set((s) => ({
+            userPoints: {
+              ...s.userPoints,
+              puntos: nuevosPuntos,
+              nivel: nuevoNivel,
+              totalPedidos: nuevosPedidos,
+              totalGastado: nuevoGastado,
+            }
+          }));
+        }
+      }
       return { success: true, data };
     } catch (e: any) {
       return { success: false, error: e.message };
@@ -225,7 +302,38 @@ export const useStore = create<AppState>((set, get) => ({
   addResena: async (resena: any) => {
     try {
       await supabase.from('resenas').insert(resena);
+      
+      if (resena.usuario_id) {
+        const { data: profile } = await supabase.from('perfiles').select('puntos, resenas_escritas').eq('id', resena.usuario_id).maybeSingle();
+        const nuevosPuntos = (profile?.puntos || 0) + 15;
+        const nuevasResenas = (profile?.resenas_escritas || 0) + 1;
+        const nuevoNivel = calcularNivel(nuevosPuntos);
+        
+        await supabase.from('perfiles').update({
+          puntos: nuevosPuntos,
+          nivel: nuevoNivel,
+          resenas_escritas: nuevasResenas
+        }).eq('id', resena.usuario_id);
+        
+        set((s) => ({
+          userPoints: {
+            ...s.userPoints,
+            puntos: nuevosPuntos,
+            nivel: nuevoNivel,
+            resenasEscritas: nuevasResenas,
+          }
+        }));
+      }
     } catch (e) {}
+  },
+
+  loadResenas: async (productoId: string) => {
+    try {
+      const { data } = await supabase.from('resenas').select('*').eq('producto_id', productoId).order('created_at', { ascending: false });
+      return data || [];
+    } catch (e) {
+      return [];
+    }
   },
 
   loadNotificaciones: async (userId: string) => {
@@ -242,5 +350,21 @@ export const useStore = create<AppState>((set, get) => ({
         notificaciones: s.notificaciones.map(n => n.id === id ? { ...n, leida: true } : n)
       }));
     } catch (e) {}
+  },
+
+  getRecomendaciones: async () => {
+    const { productos, pedidos, favoritos, userPoints } = get();
+    const categorias = [];
+    return getRecomendaciones(productos, pedidos, favoritos, categorias);
+  },
+
+  getPopulares: async () => {
+    const { productos } = get();
+    return getProductosPopulares(productos, 5);
+  },
+
+  getNuevos: async () => {
+    const { productos } = get();
+    return getNuevosProductos(productos, 7, 10);
   },
 }));

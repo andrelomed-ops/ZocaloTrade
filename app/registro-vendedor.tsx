@@ -1,6 +1,7 @@
-import { View, Text, ScrollView, TouchableOpacity, Image, StyleSheet, TextInput, Switch, Alert } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, Image, StyleSheet, TextInput, Switch, Alert, ActivityIndicator } from 'react-native';
 import { router } from 'expo-router';
 import { useState } from 'react';
+import { getCurrentLocation, reverseGeocode } from '../src/services/ubicacion';
 
 interface TiendaData {
   nombreTienda: string;
@@ -9,6 +10,8 @@ interface TiendaData {
   direccion: string;
   telefono: string;
   email: string;
+  latitud?: number | null;
+  longitud?: number | null;
   horarios: { dia: string; apertura: string; cierre: string }[];
 }
 
@@ -16,6 +19,7 @@ export default function RegistroVendedorScreen() {
   const [step, setStep] = useState(1);
   const [aceptaTerminos, setAceptaTerminos] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [cargandoUbicacion, setCargandoUbicacion] = useState(false);
   
   const [tienda, setTienda] = useState<TiendaData>({
     nombreTienda: '',
@@ -24,6 +28,8 @@ export default function RegistroVendedorScreen() {
     direccion: '',
     telefono: '',
     email: '',
+    latitud: null,
+    longitud: null,
     horarios: [
       { dia: 'Lunes', apertura: '09:00', cierre: '20:00' },
       { dia: 'Martes', apertura: '09:00', cierre: '20:00' },
@@ -134,6 +140,52 @@ export default function RegistroVendedorScreen() {
               onChangeText={(text) => setTienda({ ...tienda, direccion: text })}
             />
           </View>
+
+          <TouchableOpacity
+            style={[styles.botonUbicacion, { backgroundColor: '#e8f8f5' }]}
+            onPress={async () => {
+              setCargandoUbicacion(true);
+              try {
+                const ubicacion = await getCurrentLocation();
+                if (ubicacion) {
+                  setTienda({ 
+                    ...tienda, 
+                    latitud: ubicacion.lat, 
+                    longitud: ubicacion.lng 
+                  });
+                  const direccion = await reverseGeocode(ubicacion.lat, ubicacion.lng);
+                  if (direccion) {
+                    setTienda({ ...tienda, direccion: direccion.split(',').slice(0, 3).join(','), latitud: ubicacion.lat, longitud: ubicacion.lng });
+                  }
+                  Alert.alert('✅ Ubicación detectada', `Lat: ${ubicacion.lat.toFixed(4)}, Lng: ${ubicacion.lng.toFixed(4)}`);
+                } else {
+                  Alert.alert('Error', 'No se pudo obtener tu ubicación');
+                }
+              } catch (e) {
+                Alert.alert('Error', 'Error al obtener ubicación');
+              } finally {
+                setCargandoUbicacion(false);
+              }
+            }}
+            disabled={cargandoUbicacion}
+          >
+            {cargandoUbicacion ? (
+              <ActivityIndicator color="#27ae60" />
+            ) : (
+              <Text style={{ color: '#27ae60', fontWeight: 'bold', textAlign: 'center' }}>📍 Usar mi ubicación actual</Text>
+            )}
+          </TouchableOpacity>
+
+          {(tienda.latitud && tienda.longitud) ? (
+            <View style={{ backgroundColor: '#e8f8f5', padding: 10, borderRadius: 8, marginTop: 10 }}>
+              <Text style={{ color: '#27ae60', fontWeight: 'bold' }}>✅ Ubicación configurada</Text>
+              <Text style={{ color: '#666', fontSize: 12 }}>Lat: {tienda.latitud.toFixed(4)}, Lng: {tienda.longitud.toFixed(4)}</Text>
+            </View>
+          ) : (
+            <View style={{ backgroundColor: '#fff3cd', padding: 10, borderRadius: 8, marginTop: 10 }}>
+              <Text style={{ color: '#856404', fontSize: 12 }}>⚠️ La ubicación es importante para calcular envíos desde tu tienda</Text>
+            </View>
+          )}
 
           <View style={styles.inputGroup}>
             <Text style={styles.label}>Teléfono</Text>
@@ -270,6 +322,7 @@ const styles = StyleSheet.create({
   checkboxBox: { width: 24, height: 24, borderRadius: 4, borderWidth: 2, borderColor: '#ccc', justifyContent: 'center', alignItems: 'center' },
   checkboxBoxActive: { backgroundColor: '#FF6B35', borderColor: '#FF6B35' },
   checkmark: { color: '#fff', fontWeight: 'bold' },
+  botonUbicacion: { padding: 15, borderRadius: 10, marginVertical: 10 },
   terminosText: { flex: 1, fontSize: 13, color: '#666', lineHeight: 20 },
   comisionInfo: { backgroundColor: '#fff3cd', padding: 15, borderRadius: 10, marginTop: 20 },
   comisionTitle: { fontSize: 16, fontWeight: 'bold', marginBottom: 10 },
