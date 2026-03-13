@@ -246,8 +246,25 @@ export const useStore = create<AppState>((set, get) => ({
 
   addPedido: async (pedido: any) => {
     try {
-      const { data, error } = await supabase.from(TABLES.PEDIDOS).insert(pedido).select().single();
+      const pedidoParaGuardar = {
+        cliente_id: pedido.cliente_id,
+        tienda_id: pedido.tienda_id,
+        productos: pedido.productos,
+        subtotal: pedido.subtotal,
+        total: pedido.total,
+        direccion_entrega: pedido.direccion_entrega,
+        metodo_pago: pedido.metodo_pago,
+        status: pedido.status || 'pendiente',
+        costo_envio: pedido.costo_envio || 0,
+        distancia: pedido.distancia || 0,
+        zona: pedido.zona || 'Centro',
+        latitud_entrega: pedido.latitud_entrega,
+        longitud_entrega: pedido.longitud_entrega,
+      };
+      
+      const { data, error } = await supabase.from(TABLES.PEDIDOS).insert(pedidoParaGuardar).select().single();
       if (error) {
+        console.error('Error inserting pedido:', error);
         return { success: false, error: error.message };
       }
       if (data) {
@@ -281,6 +298,7 @@ export const useStore = create<AppState>((set, get) => ({
       }
       return { success: true, data };
     } catch (e: any) {
+      console.error('Error in addPedido:', e);
       return { success: false, error: e.message };
     }
   },
@@ -288,8 +306,18 @@ export const useStore = create<AppState>((set, get) => ({
   loadPedidos: async (userId: string) => {
     try {
       const { data } = await supabase.from(TABLES.PEDIDOS).select('*').eq('cliente_id', userId).order('created_at', { ascending: false });
-      if (data) set({ pedidos: data });
-    } catch (e) {}
+      if (data) {
+        const pedidosMapeados = data.map((item: any) => ({
+          ...item,
+          createdAt: item.created_at,
+          tiendaId: item.tienda_id,
+          direccionEntrega: item.direccion_entrega,
+        }));
+        set({ pedidos: pedidosMapeados });
+      }
+    } catch (e) {
+      console.error('Error loading pedidos:', e);
+    }
   },
 
   updatePedidoStatus: async (id: string, status: string) => {

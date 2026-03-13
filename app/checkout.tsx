@@ -94,14 +94,16 @@ export default function CheckoutScreen() {
       };
 
       const result: any = await addPedido(nuevoPedido);
+      console.log('Result addPedido:', result);
       
       if (!result?.success) {
-        Alert.alert('Error', 'No se pudo guardar el pedido');
+        Alert.alert('Error', result?.error || 'No se pudo guardar el pedido');
         setConfirmando(false);
         return;
       }
 
       const pedidoId = result.data?.id;
+      console.log('Pedido guardado con ID:', pedidoId);
       
       if (pedidoId && tiendaSeleccionada) {
         try {
@@ -131,6 +133,7 @@ export default function CheckoutScreen() {
       
       if (user?.id) await loadPedidos(user.id);
       clearCarrito();
+      Alert.alert('✅ Éxito', 'Tu pedido ha sido realizado');
       router.replace('/(tabs)/pedidos');
     } catch (error: any) {
       Alert.alert('Error', 'Ocurrió un error al procesar el pedido');
