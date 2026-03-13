@@ -59,13 +59,15 @@ export default function CheckoutScreen() {
   };
 
   const handleConfirmarPedido = async () => {
+    console.log('=== handleConfirmarPedido ===');
+    
     if (!direccionEntrega) {
-      Alert.alert('Error', 'Por favor ingresa o selecciona tu dirección de entrega');
+      Alert.alert('Error', 'Por favor ingresa tu dirección');
       return;
     }
 
-    if (!costoEnvioInfo) {
-      Alert.alert('Calculando envío', 'Por favor espera a que se calcule el costo de envío para tu dirección');
+    if (!user?.id) {
+      Alert.alert('Error', 'Debes iniciar sesión');
       return;
     }
 
@@ -73,10 +75,9 @@ export default function CheckoutScreen() {
 
     try {
       const nuevoPedido = {
-        cliente_id: user?.id || null,
-        tienda_id: tiendaSeleccionada?.id || 'f859b36a-424e-498a-a703-edc46ddeb9ac',
+        cliente_id: user.id,
+        tienda_id: 'f859b36a-424e-498a-a703-edc46ddeb9ac',
         productos: JSON.stringify(carrito.map(item => ({
-          id: item.producto.id,
           nombre: item.producto.nombre,
           cantidad: item.cantidad,
           precio: item.producto.precio
@@ -85,58 +86,26 @@ export default function CheckoutScreen() {
         total: subtotal + costoEnvio,
         direccion_entrega: direccionEntrega,
         metodo_pago: metodoPago === 'tarjeta' ? 'tarjeta' : 'efectivo',
-        status: 'preparando',
-        costo_envio: costoEnvio,
-        distancia: costoEnvioInfo.distancia,
-        zona: costoEnvioInfo.zona,
-        latitud_entrega: ubicacionEntrega?.lat || null,
-        longitud_entrega: ubicacionEntrega?.lng || null,
       };
 
+      console.log('Calling addPedido...');
       const result: any = await addPedido(nuevoPedido);
-      console.log('Result addPedido:', result);
+      console.log('Result:', result);
       
       if (!result?.success) {
-        Alert.alert('Error', result?.error || 'No se pudo guardar el pedido');
+        Alert.alert('Error', result?.error || 'No se guardó');
         setConfirmando(false);
         return;
       }
 
-      const pedidoId = result.data?.id;
-      console.log('Pedido guardado con ID:', pedidoId);
-      
-      if (pedidoId && tiendaSeleccionada) {
-        try {
-          const pickupAddress = tiendaSeleccionada.direccion || 'Zócalo de la Ciudad de México, Centro Histórico, CDMX';
-          const pickupCoords = (tiendaSeleccionada.latitud && tiendaSeleccionada.longitud)
-            ? { lat: tiendaSeleccionada.latitud, lng: tiendaSeleccionada.longitud }
-            : undefined;
-
-          await createClincKargoOrder({
-            pedidoId,
-            pickupAddress,
-            pickupCoordinates: pickupCoords,
-            dropoffAddress: direccionEntrega,
-            dropoffCoordinates: ubicacionEntrega ? { lat: ubicacionEntrega.lat, lng: ubicacionEntrega.lng } : undefined,
-            items: carrito.map(item => ({
-              name: item.producto.nombre,
-              size: item.producto.precio < 200 ? 'Pequeño' : item.producto.precio < 500 ? 'Mediano' : item.producto.precio < 1000 ? 'Grande' : 'Extra Grande',
-              quantity: item.cantidad
-            })),
-            customerPhone: user?.email || undefined,
-            customerName: user?.nombre || undefined
-          });
-        } catch (clinkError) {
-          console.log('Error creando orden Clinkargo:', clinkError);
-        }
-      }
-      
-      if (user?.id) await loadPedidos(user.id);
+      console.log('Pedido guardado, limpiando...');
       clearCarrito();
-      Alert.alert('✅ Éxito', 'Tu pedido ha sido realizado');
+      Alert.alert('✅ Listo', 'Pedido realizado');
       router.replace('/(tabs)/pedidos');
+      
     } catch (error: any) {
-      Alert.alert('Error', 'Ocurrió un error al procesar el pedido');
+      console.error('ERROR:', error);
+      Alert.alert('Error', error.message);
     } finally {
       setConfirmando(false);
     }

@@ -246,59 +246,32 @@ export const useStore = create<AppState>((set, get) => ({
 
   addPedido: async (pedido: any) => {
     try {
-      const pedidoParaGuardar = {
+      console.log('=== addPedido START ===');
+      console.log('Pedido received:', JSON.stringify(pedido, null, 2));
+      
+      const pedidoSimple = {
         cliente_id: pedido.cliente_id,
         tienda_id: pedido.tienda_id,
         productos: pedido.productos,
-        subtotal: pedido.subtotal,
-        total: pedido.total,
+        subtotal: Number(pedido.subtotal),
+        total: Number(pedido.total),
         direccion_entrega: pedido.direccion_entrega,
         metodo_pago: pedido.metodo_pago,
-        status: pedido.status || 'pendiente',
-        costo_envio: pedido.costo_envio || 0,
-        distancia: pedido.distancia || 0,
-        zona: pedido.zona || 'Centro',
-        latitud_entrega: pedido.latitud_entrega,
-        longitud_entrega: pedido.longitud_entrega,
+        status: 'pendiente',
       };
       
-      const { data, error } = await supabase.from(TABLES.PEDIDOS).insert(pedidoParaGuardar).select().single();
+      console.log('Inserting to pedidos table...');
+      const { data, error } = await supabase.from('pedidos').insert(pedidoSimple).select().single();
+      
       if (error) {
-        console.error('Error inserting pedido:', error);
+        console.error('SUPABASE ERROR:', error);
         return { success: false, error: error.message };
       }
-      if (data) {
-        set((s) => ({ pedidos: [data, ...s.pedidos] }));
-        
-        if (pedido.cliente_id) {
-          const puntosGanados = calcularPuntosPorCompra(pedido.total);
-          const { data: profile } = await supabase.from('perfiles').select('puntos, nivel, total_pedidos, total_gastado').eq('id', pedido.cliente_id).maybeSingle();
-          const nuevosPuntos = (profile?.puntos || 0) + puntosGanados;
-          const nuevosPedidos = (profile?.total_pedidos || 0) + 1;
-          const nuevoGastado = (profile?.total_gastado || 0) + pedido.total;
-          const nuevoNivel = calcularNivel(nuevosPuntos);
-          
-          await supabase.from('perfiles').update({
-            puntos: nuevosPuntos,
-            nivel: nuevoNivel,
-            total_pedidos: nuevosPedidos,
-            total_gastado: nuevoGastado
-          }).eq('id', pedido.cliente_id);
-          
-          set((s) => ({
-            userPoints: {
-              ...s.userPoints,
-              puntos: nuevosPuntos,
-              nivel: nuevoNivel,
-              totalPedidos: nuevosPedidos,
-              totalGastado: nuevoGastado,
-            }
-          }));
-        }
-      }
+      
+      console.log('SUCCESS - Data returned:', data);
       return { success: true, data };
     } catch (e: any) {
-      console.error('Error in addPedido:', e);
+      console.error('CATCH ERROR:', e);
       return { success: false, error: e.message };
     }
   },
