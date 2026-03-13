@@ -28,8 +28,8 @@ export interface InfoProducto {
 }
 
 const TARIFAS_CLINKARGO = {
-  base: 35,
-  por_km: 5,
+  base: 25,
+  por_km: 3,
   min: 25,
   max: 500,
   umbralGratis: 800,
@@ -124,11 +124,13 @@ export const calcularCostoEnvio = (
   
   if (subtotal >= TARIFAS_CLINKARGO.umbralGratis) {
     costo = Math.min(costo, TARIFAS_CLINKARGO.base * 0.5);
-  } else if (subtotal >= 300) {
-    costo = Math.max(TARIFAS_CLINKARGO.min, Math.round(costo * 0.8));
+  } else if (subtotal >= TARIFAS_CLINKARGO.descuento20) {
+    costo = Math.round(costo * 0.8);
+  } else if (subtotal >= TARIFAS_CLINKARGO.descuento10) {
+    costo = Math.round(costo * 0.9);
   }
   
-  costo = Math.max(TARIFAS_CLINKARGO.min, Math.min(TARIFAS_CLINKARGO.max, Math.round(costo)));
+  costo = Math.max(TARIFAS_CLINKARGO.min, Math.min(TARIFAS_CLINKARGO.max, costo));
   
   return {
     distancia: Math.round(distancia * 10) / 10,
