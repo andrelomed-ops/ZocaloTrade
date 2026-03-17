@@ -1,8 +1,9 @@
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, ActivityIndicator, Platform, Image } from 'react-native';
 import { useLocalSearchParams, router } from 'expo-router';
 import { useStore } from '../../src/store/useStore';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { supabase } from '../../src/services/supabase';
+import { getClincKargoOrderStatus, syncOrderStatus, CLINKCARGO_STATUS_MAP } from '../../src/services/clinckargo';
 
 const STATUS_COLORS: any = {
   pendiente: '#f39c12',
@@ -28,8 +29,25 @@ export default function PedidoScreen() {
   const [rating, setRating] = useState(0);
   const [comentario, setComentario] = useState('');
   const [enviandoResena, setEnviandoResena] = useState(false);
+  const [transportStatus, setTransportStatus] = useState<any>(null);
   
   const pedido = pedidos.find(p => p.id === id);
+
+  useEffect(() => {
+    if (pedido?.clinckargo_id) {
+      getClincKargoOrderStatus(pedido.clinckargo_id).then(setTransportStatus);
+      
+      const unsubscribe = syncOrderStatus(
+        pedido.id,
+        pedido.clinckargo_id,
+        (status, etapa) => {
+          setTransportStatus((prev: any) => ({ ...prev, status, etapa }));
+        }
+      );
+      
+      return unsubscribe;
+    }
+  }, [pedido?.id, pedido?.clinckargo_id]);
 
   if (!pedido) {
     return (
@@ -91,6 +109,40 @@ export default function PedidoScreen() {
           <Text style={styles.statusText}>{STATUS_LABELS[pedido.status]?.toUpperCase() || 'PROCESANDO'}</Text>
         </View>
       </View>
+
+      {transportStatus && (
+        <View style={[styles.section, { backgroundColor: '#e8f5e9', borderColor: '#4caf50' }]}>
+          <Text style={[styles.sectionTitle, { color: '#2e7d32' }]}>🚚 Estado del Transporte (ClinkCargo)</Text>
+          <View style={styles.row}>
+            <Text style={{ color: '#2e7d32' }}>Estado</Text>
+            <Text style={{ color: '#2e7d32', fontWeight: 'bold' }}>
+              {CLINKCARGO_STATUS_MAP[transportStatus.status] || transportStatus.status}
+            </Text>
+          </View>
+          {transportStatus.driver && (
+            <>
+              <View style={styles.row}>
+                <Text style={{ color: '#2e7d32' }}>Conductor</Text>
+                <Text style={{ color: '#2e7d32' }}>{transportStatus.driver.name}</Text>
+              </View>
+              <View style={styles.row}>
+                <Text style={{ color: '#2e7d32' }}>Vehículo</Text>
+                <Text style={{ color: '#2e7d32' }}>{transportStatus.driver.vehicle}</Text>
+              </View>
+              <View style={styles.row}>
+                <Text style={{ color: '#2e7d32' }}>Placas</Text>
+                <Text style={{ color: '#2e7d32' }}>{transportStatus.driver.plate}</Text>
+              </View>
+            </>
+          )}
+          {transportStatus.eta && (
+            <View style={styles.row}>
+              <Text style={{ color: '#2e7d32' }}>Tiempo estimado</Text>
+              <Text style={{ color: '#2e7d32' }}>{transportStatus.eta} min</Text>
+            </View>
+          )}
+        </View>
+      )}
 
       <View style={[styles.section, { backgroundColor: colors.card }]}>
         <Text style={[styles.sectionTitle, { color: colors.text }]}>🛍️ Productos</Text>

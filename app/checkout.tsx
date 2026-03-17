@@ -2,7 +2,7 @@ import { View, Text, TouchableOpacity, StyleSheet, ScrollView, TextInput, Alert,
 import { useStore } from '../src/store/useStore';
 import { router } from 'expo-router';
 import { useState, useEffect, useCallback } from 'react';
-import { createClincKargoOrder } from '../src/services/clinckargo';
+import { createClincKargoOrder, quoteTransport, type TransportQuote } from '../src/services/clinckargo';
 import { buscarDirecciones, getCurrentLocation, calcularCostoEnvio, DireccionSugerida, CostoEnvio } from '../src/services/ubicacion';
 
 export default function CheckoutScreen() {
@@ -11,6 +11,7 @@ export default function CheckoutScreen() {
   const [sugerencias, setSugerencias] = useState<DireccionSugerida[]>([]);
   const [mostrarSugerencias, setMostrarSugerencias] = useState(false);
   const [costoEnvioInfo, setCostoEnvioInfo] = useState<CostoEnvio | null>(null);
+  const [transportQuote, setTransportQuote] = useState<TransportQuote | null>(null);
   const [cargandoUbicacion, setCargandoUbicacion] = useState(false);
   const [confirmando, setConfirmando] = useState(false);
   const [tiendaSeleccionada, setTiendaSeleccionada] = useState<any>(null);
@@ -98,9 +99,39 @@ export default function CheckoutScreen() {
         return;
       }
 
-      console.log('Pedido guardado, limpiando...');
+      console.log('Pedido guardado, creando orden de transporte...');
+      
+      let clinkCargoOrderId = null;
+      if (ubicacionEntrega && tiendaSeleccionada?.latitud && tiendaSeleccionada?.longitud) {
+        const transportResult = await createClincKargoOrder({
+          pedidoId: result.pedidoId,
+          pickupAddress: tiendaSeleccionada.direccion || 'Tienda ZocaloTrade',
+          pickupCoordinates: { lat: tiendaSeleccionada.latitud, lng: tiendaSeleccionada.longitud },
+          dropoffAddress: direccionEntrega,
+          dropoffCoordinates: ubicacionEntrega,
+          items: (carrito || []).map(item => ({
+            name: item.producto.nombre,
+            size: 'Mediano',
+            quantity: item.cantidad
+          })),
+          customerPhone: undefined,
+          customerName: user?.nombre
+        });
+        
+        if (transportResult.success) {
+          clinkCargoOrderId = transportResult.orderId;
+          console.log('Orden de transporte creada:', clinkCargoOrderId);
+        }
+      }
+      
+      console.log('Limpiando...');
       clearCarrito();
-      Alert.alert('✅ Listo', 'Pedido realizado');
+      
+      const mensajeExito = clinkCargoOrderId 
+        ? `Pedido realizado con éxito.🚚 Tu envío está siendo tramitado (Orden: ${clinkCargoOrderId})`
+        : 'Pedido realizado con éxito';
+      
+      Alert.alert('✅ Listo', mensajeExito);
       router.replace('/(tabs)/pedidos');
       
     } catch (error: any) {
@@ -213,8 +244,28 @@ export default function CheckoutScreen() {
                 const tiendaUbicacion = tiendaSeleccionada?.latitud && tiendaSeleccionada?.longitud 
                   ? { lat: tiendaSeleccionada.latitud, lng: tiendaSeleccionada.longitud }
                   : null;
-                const costo = calcularCostoEnvio(ubicacion, tiendaUbicacion, tiendaSeleccionada?.nombre, { subtotal });
-                setCostoEnvioInfo(costo);
+                
+                if (tiendaUbicacion) {
+                  const items = (carrito || []).map(item => ({
+                    name: item.producto.nombre,
+                    size: 'Mediano',
+                    quantity: item.cantidad
+                  }));
+                  
+                  const quote = await quoteTransport(tiendaUbicacion, ubicacion, items);
+                  if (quote) {
+                    setTransportQuote(quote);
+                    setCostoEnvioInfo({
+                      costo: quote.price,
+                      distancia: quote.distance,
+                      zona: quote.vehicleType
+                    });
+                  }
+                } else {
+                  const costo = calcularCostoEnvio(ubicacion, null, tiendaSeleccionada?.nombre, { subtotal });
+                  setCostoEnvioInfo(costo);
+                }
+                
                 setDireccionEntrega('📍 Ubicación actual detectada');
                 setUbicacionEntrega(ubicacion);
               } else {

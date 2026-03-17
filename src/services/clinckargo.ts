@@ -163,6 +163,57 @@ export const CLINKCARGO_STATUS_MAP: Record<string, string> = {
   'completed': 'Entregado'
 };
 
+export interface TransportQuote {
+  price: number;
+  distance: number;
+  estimatedTime: number;
+  vehicleType: string;
+}
+
+export async function quoteTransport(
+  pickupCoordinates: { lat: number; lng: number },
+  dropoffCoordinates: { lat: number; lng: number },
+  items: Array<{ name: string; size: string; quantity: number }>
+): Promise<TransportQuote | null> {
+  try {
+    const R = 6371;
+    const dLat = (dropoffCoordinates.lat - pickupCoordinates.lat) * Math.PI / 180;
+    const dLon = (dropoffCoordinates.lng - pickupCoordinates.lng) * Math.PI / 180;
+    const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+      Math.cos(pickupCoordinates.lat * Math.PI / 180) * Math.cos(dropoffCoordinates.lat * Math.PI / 180) *
+      Math.sin(dLon/2) * Math.sin(dLon/2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    const distance = Math.round(R * c);
+
+    let vehicleType = 'Van';
+    let basePrice = 150;
+    
+    const totalWeight = items.reduce((sum, item) => {
+      const weightMap: Record<string, number> = {
+        'Pequeño': 5, 'Mediano': 15, 'Grande': 40, 'Extra Grande': 100
+      };
+      return sum + (weightMap[item.size] || 10) * item.quantity;
+    }, 0);
+
+    if (totalWeight > 50) {
+      vehicleType = 'Torton';
+      basePrice = 500;
+    } else if (totalWeight > 20) {
+      vehicleType = 'Camión';
+      basePrice = 300;
+    }
+
+    const pricePerKm = vehicleType === 'Torton' ? 25 : vehicleType === 'Camión' ? 18 : 12;
+    const price = Math.round(basePrice + (distance * pricePerKm));
+    const estimatedTime = Math.round(distance / 30 * 60);
+
+    return { price, distance, estimatedTime, vehicleType };
+  } catch (err) {
+    console.error('Quote error:', err);
+    return null;
+  }
+}
+
 export function syncOrderStatus(
   zocaloPedidoId: string, 
   clinkCargoOrderId: string,
