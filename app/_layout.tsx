@@ -4,8 +4,14 @@ import { View, ActivityIndicator, Text } from 'react-native';
 import { supabase } from '../src/services/supabase';
 import { useStore } from '../src/store/useStore';
 import '../src/services/i18n'; // Inicializa i18next
+import * as Sentry from '@sentry/react-native';
 
-export default function RootLayout() {
+Sentry.init({
+  dsn: process.env.EXPO_PUBLIC_SENTRY_DSN || '',
+  debug: false,
+});
+
+function RootLayout() {
   const { setUser, initialize, colors } = useStore();
   const [isReady, setIsReady] = useState(false);
 
@@ -92,3 +98,5 @@ export default function RootLayout() {
     </Stack>
   );
 }
+
+export default Sentry.wrap(RootLayout);

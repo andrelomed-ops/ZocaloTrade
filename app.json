@@ -6,6 +6,11 @@
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#FF6B35"
+    },
     "userInterfaceStyle": "automatic",
     "newArchEnabled": false,
     "android": {
@@ -14,11 +19,13 @@
         "backgroundColor": "#FF6B35"
       },
       "edgeToEdgeEnabled": false,
-      "package": "com.zocalotrade.app"
+      "package": "com.zocalotrade.app",
+      "versionCode": 1
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.zocalotrade.app"
+      "bundleIdentifier": "com.zocalotrade.app",
+      "buildNumber": "1"
     },
     "web": {
       "favicon": "./assets/favicon.png",
@@ -29,17 +36,23 @@
       [
         "expo-location",
         {
-          "locationAlwaysAndWhenInUsePermission": "Allow ZocaloTrade to use your location to find nearby merchants."
+          "locationAlwaysAndWhenInUsePermission": "Permite que ZocaloTrade use tu ubicación para encontrar comerciantes cercanos."
         }
       ],
       [
         "expo-image-picker",
         {
-          "photosPermission": "Allow ZocaloTrade to access your photos to upload product images.",
-          "cameraPermission": "Allow ZocaloTrade to use your camera to take product photos."
+          "photosPermission": "Permite que ZocaloTrade acceda a tus fotos para subir imágenes de productos.",
+          "cameraPermission": "Permite que ZocaloTrade use tu cámara para tomar fotos de productos."
         }
       ],
-      "expo-notifications"
+      "expo-notifications",
+      [
+        "@sentry/react-native/expo",
+        {
+          "url": "https://sentry.io/"
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true
