@@ -20,7 +20,9 @@ function RootLayout() {
 
     const setupApp = async () => {
       try {
-        await initialize();
+        // No bloqueamos el renderizado por los datos (productos/tiendas)
+        // Solo verificamos la sesión
+        initialize(); 
         
         const { data: { session } } = await supabase.auth.getSession();
         if (session?.user && mounted) {
@@ -83,7 +85,6 @@ function RootLayout() {
       <Stack.Screen name="checkout" options={{ title: 'Checkout' }} />
       <Stack.Screen name="seguimiento" options={{ title: 'Seguimiento' }} />
       <Stack.Screen name="admin/index" options={{ title: 'Panel Maestro' }} />
-      <Stack.Screen name="admin-panel" options={{ title: 'Admin Web', headerShown: false }} />
       <Stack.Screen name="mis-productos" options={{ title: 'Mi Inventario' }} />
       <Stack.Screen name="pedidos-vendedor" options={{ title: 'Pedidos Recibidos' }} />
       <Stack.Screen name="estadisticas" options={{ title: 'Estadísticas' }} />

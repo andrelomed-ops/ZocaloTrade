@@ -1,7 +1,8 @@
-import { View, Text, ScrollView, TouchableOpacity, Image, StyleSheet, TextInput, Switch, Alert, ActivityIndicator } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, Image, StyleSheet, TextInput, Switch, Alert, ActivityIndicator, Platform } from 'react-native';
 import { router } from 'expo-router';
 import { useState } from 'react';
 import { getCurrentLocation, reverseGeocode } from '../src/services/ubicacion';
+import { useStore } from '../src/store/useStore';
 
 interface TiendaData {
   nombreTienda: string;
@@ -16,6 +17,7 @@ interface TiendaData {
 }
 
 export default function RegistroVendedorScreen() {
+  const { user, addTienda, setRol } = useStore();
   const [step, setStep] = useState(1);
   const [aceptaTerminos, setAceptaTerminos] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -46,7 +48,8 @@ export default function RegistroVendedorScreen() {
   const handleSiguiente = () => {
     if (step === 1) {
       if (!tienda.nombreTienda || !tienda.categoria) {
-        Alert.alert('Error', 'Completa el nombre y categoría de tu tienda');
+        if (Platform.OS === 'web') alert('Completa el nombre y categoría de tu tienda');
+        else Alert.alert('Error', 'Completa el nombre y categoría de tu tienda');
         return;
       }
     }
@@ -55,21 +58,55 @@ export default function RegistroVendedorScreen() {
     }
   };
 
-  const handleRegistrarse = () => {
+  const handleRegistrarse = async () => {
     if (!aceptaTerminos) {
-      Alert.alert('Error', 'Debes aceptar los términos y condiciones');
+      if (Platform.OS === 'web') alert('Debes aceptar los términos');
+      else Alert.alert('Error', 'Debes aceptar los términos y condiciones');
+      return;
+    }
+
+    if (!user) {
+      router.push('/login');
       return;
     }
 
     setLoading(true);
-    setTimeout(() => {
+    try {
+      const result = await addTienda({
+        usuario_id: user.id,
+        nombre: tienda.nombreTienda,
+        descripcion: tienda.descripcion,
+        categoria: tienda.categoria,
+        direccion: tienda.direccion,
+        telefono: tienda.telefono,
+        email: tienda.email || user.email,
+        latitud: tienda.latitud,
+        longitud: tienda.longitud,
+        horarios: tienda.horarios,
+        activa: true,
+        rating: 5.0
+      });
+
+      if (result.success) {
+        if (Platform.OS === 'web') {
+          alert('¡Bienvenido a ZocaloTrade! 🎉 Tu cuenta de vendedor ha sido creada.');
+        } else {
+          Alert.alert(
+            '¡Bienvenido a ZocaloTrade! 🎉',
+            'Tu cuenta de vendedor ha sido creada. Ahora puedes agregar productos.',
+            [{ text: 'OK' }]
+          );
+        }
+        router.push('/(tabs)');
+      } else {
+        throw new Error(result.error);
+      }
+    } catch (e: any) {
+      if (Platform.OS === 'web') alert('Error al registrar: ' + e.message);
+      else Alert.alert('Error', e.message);
+    } finally {
       setLoading(false);
-      Alert.alert(
-        '¡Bienvenido a ZocaloTrade! 🎉',
-        'Tu cuenta de vendedor ha sido creada. Ahora puedes agregar productos.',
-        [{ text: 'OK', onPress: () => router.push('/(tabs)') }]
-      );
-    }, 1500);
+    }
   };
 
   return (

@@ -12,10 +12,10 @@ export default function SplashScreen() {
 
     const initApp = async () => {
       try {
-        // Fallback timeout para forzar la navegación si Supabase tarda mucho
+        // Fallback snappier para la web y casos de cache
         const timeoutId = setTimeout(() => {
           if (mounted) router.replace('/(tabs)');
-        }, 5000);
+        }, 3000); // 3 segundos en vez de 5
 
         await initialize();
 

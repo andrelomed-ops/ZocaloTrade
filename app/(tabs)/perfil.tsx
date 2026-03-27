@@ -53,13 +53,13 @@ export default function PerfilScreen() {
   return (
     <ScrollView style={[styles.container, { backgroundColor: colors.background }]}>
       {isAdmin && (
-        <TouchableOpacity 
-          style={[styles.adminBanner, { backgroundColor: '#8e44ad' }]}
-          onPress={() => router.push(Platform.OS === 'web' ? '/admin-panel' : '/admin')}
-        >
-          <Text style={styles.adminBannerTitle}>🛡️ Panel Maestro (Admin)</Text>
-          <Text style={styles.adminBannerText}>Ver métricas globales de ZocaloTrade</Text>
-        </TouchableOpacity>
+      <TouchableOpacity 
+        style={[styles.adminBanner, { backgroundColor: '#8e44ad' }]}
+        onPress={() => router.push('/admin')}
+      >
+        <Text style={styles.adminBannerTitle}>🛡️ Panel Maestro (Admin)</Text>
+        <Text style={styles.adminBannerText}>Ver métricas globales de ZocaloTrade</Text>
+      </TouchableOpacity>
       )}
 
       <View style={[styles.header, { backgroundColor: colors.primary }]}>
@@ -116,8 +116,24 @@ export default function PerfilScreen() {
         </View>
       )}
 
+      <View style={[styles.section, { backgroundColor: colors.card, marginTop: 10 }]}>
+        <Text style={[styles.sectionTitle, { color: colors.text }]}>Información Legal</Text>
+        <TouchableOpacity 
+          style={[styles.menuItem, { backgroundColor: colors.background, padding: 15, marginBottom: 10 }]}
+          onPress={() => router.push('/legal?type=privacy')}
+        >
+          <Text style={[styles.menuText, { color: colors.text }]}>📄 Aviso de Privacidad</Text>
+        </TouchableOpacity>
+        <TouchableOpacity 
+          style={[styles.menuItem, { backgroundColor: colors.background, padding: 15 }]}
+          onPress={() => router.push('/legal?type=terms')}
+        >
+          <Text style={[styles.menuText, { color: colors.text }]}>⚖️ Términos de Servicio</Text>
+        </TouchableOpacity>
+      </View>
+
       <TouchableOpacity 
-        style={[styles.menuItem, { backgroundColor: colors.card, marginTop: 10, padding: 15 }]}
+        style={[styles.menuItem, { backgroundColor: colors.card, marginVertical: 20, padding: 15 }]}
         onPress={() => router.push('/configuracion')}
       >
         <Text style={[styles.menuText, { color: colors.text }]}>⚙️ Ajustes Avanzados</Text>

@@ -122,6 +122,8 @@ interface AppState {
   getRecomendaciones: () => Promise<any[]>;
   getPopulares: () => Promise<any[]>;
   getNuevos: () => Promise<any[]>;
+  revalidateData: () => Promise<void>;
+  addTienda: (tienda: any) => Promise<{ success: boolean; data?: any; error?: string }>;
 }
 
 export const useStore = create<AppState>((set, get) => ({
@@ -148,11 +150,13 @@ export const useStore = create<AppState>((set, get) => ({
   },
   
   setUser: (user) => {
-    const adminEmails = ['andrelomed@gmail.com', 'zocalotrade@gmail.com'];
+    // Lista de correos "superadmin" de respaldo, pero priorizaremos el campo 'rol' de la DB
+    const adminEmails = ['andrelomed@gmail.com', 'zocalotrade@gmail.com', 'cp_andrelomed@hotmail.com'];
     set({ 
       user, 
       isAdmin: user ? adminEmails.includes(user.email) : false 
     });
+    if (user) get().loadUserExtras(user.id);
   },
   setRol: (rol) => set({ rol }),
   setDarkMode: (darkMode) => set({ 
@@ -163,41 +167,69 @@ export const useStore = create<AppState>((set, get) => ({
   
   initialize: async () => {
     if (get().initialized) return;
+    
+    // 1. Intentar cargar desde cache inmediatamente para rapidez
     try {
-      let productosData = null;
-      let tiendasData = null;
+      const cachedProductos = await getFromCache<any[]>('productos');
+      const cachedTiendas = await getFromCache<any[]>('tiendas');
       
-      try {
-        const { data: p } = await supabase.from(TABLES.PRODUCTOS).select('*').eq('activo', true);
-        const { data: t } = await supabase.from(TABLES.TIENDAS).select('*').eq('activa', true);
-        productosData = p;
-        tiendasData = t;
+      if (cachedProductos || cachedTiendas) {
+        set({
+          productos: (cachedProductos && cachedProductos.length > 0) 
+            ? cachedProductos.map((item: any) => ({ ...item, tiendaId: item.tienda_id, fotos: item.fotos || ['https://picsum.photos/400/400'], disponible: item.activo })) 
+            : MOCK_PRODUCTOS,
+          tiendas: (cachedTiendas && cachedTiendas.length > 0) ? cachedTiendas : MOCK_TIENDAS,
+          initialized: true,
+        });
         
-        if (p) await saveToCache('productos', p);
-        if (t) await saveToCache('tiendas', t);
-      } catch (e) {
-        console.log('Online fetch failed, trying cache...');
-        productosData = await getFromCache('productos');
-        tiendasData = await getFromCache('tiendas');
+        // Si ya cargamos cache, lanzamos la actualización de Supabase en SEGUNDO PLANO
+        get().revalidateData();
+        return;
       }
-      
+    } catch (e) {
+      console.log('Cache access failed, proceeding to online fetch');
+    }
+
+    // 2. Si no hay cache, o es la primera vez, cargar online (Bloqueante)
+    await get().revalidateData();
+  },
+
+  revalidateData: async () => {
+    try {
+      // Paralelizar las peticiones a Supabase
+      const [productosRes, tiendasRes] = await Promise.all([
+        supabase.from(TABLES.PRODUCTOS).select('*').eq('activo', true),
+        supabase.from(TABLES.TIENDAS).select('*').eq('activa', true)
+      ]);
+
+      const p = productosRes.data;
+      const t = tiendasRes.data;
+
+      if (p) await saveToCache('productos', p);
+      if (t) await saveToCache('tiendas', t);
+
       set({
-        productos: (productosData && productosData.length > 0) 
-          ? productosData.map((item: any) => ({ ...item, tiendaId: item.tienda_id, fotos: item.fotos || ['https://picsum.photos/400/400'], disponible: item.activo })) 
+        productos: (p && p.length > 0) 
+          ? p.map((item: any) => ({ ...item, tiendaId: item.tienda_id, fotos: item.fotos || ['https://picsum.photos/400/400'], disponible: item.activo })) 
           : MOCK_PRODUCTOS,
-        tiendas: (tiendasData && tiendasData.length > 0) ? tiendasData : MOCK_TIENDAS,
+        tiendas: (t && t.length > 0) ? t : MOCK_TIENDAS,
         initialized: true,
       });
     } catch (e) {
-      set({ productos: MOCK_PRODUCTOS, tiendas: MOCK_TIENDAS, initialized: true });
+      console.error('Revalidation failed:', e);
+      if (!get().initialized) {
+        set({ productos: MOCK_PRODUCTOS, tiendas: MOCK_TIENDAS, initialized: true });
+      }
     }
   },
 
   loadUserExtras: async (userId: string) => {
     try {
-      const { data: profile } = await supabase.from('perfiles').select('favoritos, puntos, nivel, badges, total_pedidos, total_gastado, resenas_escritas').eq('id', userId).maybeSingle();
+      const { data: profile } = await supabase.from('perfiles').select('rol, favoritos, puntos, nivel, badges, total_pedidos, total_gastado, resenas_escritas').eq('id', userId).maybeSingle();
       if (profile) {
-        set({ 
+        set((s) => ({ 
+          rol: profile.rol || 'cliente',
+          isAdmin: s.isAdmin || profile.rol === 'admin',
           favoritos: profile.favoritos || [],
           userPoints: {
             puntos: profile.puntos || 0,
@@ -207,7 +239,7 @@ export const useStore = create<AppState>((set, get) => ({
             totalGastado: profile.total_gastado || 0,
             resenasEscritas: profile.resenas_escritas || 0,
           }
-        });
+        }));
       }
       const { data: notifs } = await supabase.from('notificaciones').select('*').eq('usuario_id', userId).order('created_at', { ascending: false });
       if (notifs) set({ notificaciones: notifs });
@@ -367,5 +399,27 @@ export const useStore = create<AppState>((set, get) => ({
   getNuevos: async () => {
     const { productos } = get();
     return getNuevosProductos(productos, 7, 10);
+  },
+
+  addTienda: async (tiendaData: any) => {
+    try {
+      const { data, error } = await supabase.from(TABLES.TIENDAS).insert(tiendaData).select().single();
+      if (error) throw error;
+      
+      // Actualizar el rol del usuario en la base de datos
+      if (tiendaData.usuario_id) {
+        await supabase.from(TABLES.PERFILES).update({ rol: 'vendedor' }).eq('id', tiendaData.usuario_id);
+        set({ rol: 'vendedor' });
+      }
+
+      if (data) {
+        set((s) => ({ tiendas: [...s.tiendas, data] }));
+        return { success: true, data };
+      }
+      return { success: false, error: 'No data returned' };
+    } catch (e: any) {
+      console.error('Add Tienda error:', e);
+      return { success: false, error: e.message };
+    }
   },
 }));

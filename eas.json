@@ -18,7 +18,8 @@
       "env": {
         "EXPO_PUBLIC_OPENROUTER_API_KEY": "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",
         "EXPO_PUBLIC_SUPABASE_URL": "https://bctwviuitgqyolxabwxq.supabase.co",
-        "EXPO_PUBLIC_SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJjdHd2aXVpdGdxeW9seGFid3hxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzIzMjM4MzMsImV4cCI6MjA4Nzg5OTgzM30.PfKJ0zCIKPqSwUkyLZLTAwkbmyZOh_wSOoVbf51wd2Y"
+        "EXPO_PUBLIC_SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJjdHd2aXVpdGdxeW9seGFid3hxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzIzMjM4MzMsImV4cCI6MjA4Nzg5OTgzM30.PfKJ0zCIKPqSwUkyLZLTAwkbmyZOh_wSOoVbf51wd2Y",
+        "EXPO_PUBLIC_SENTRY_DSN": "https://96a04e902951c32ff1dd8ba2abce51f4@o4511107888119808.ingest.us.sentry.io/4511107900702720"
       }
     }
   },
