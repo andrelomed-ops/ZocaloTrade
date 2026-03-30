@@ -258,7 +258,7 @@ export default function CheckoutScreen() {
                     setCostoEnvioInfo({
                       costo: quote.price,
                       distancia: quote.distance,
-                      zona: quote.vehicleType
+                      zona: quote.vehicleName
                     });
                   }
                 } else {
