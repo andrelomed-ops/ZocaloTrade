@@ -1,9 +1,16 @@
 import { createClient } from '@supabase/supabase-js';
 
-const CLINKCARGO_SUPABASE_URL = 'https://uqxjpimokfalwewmvgxw.supabase.co';
-const CLINKCARGO_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVxeGpwaW1va2ZhbHdld212Z3h3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE2MTM0MTIsImV4cCI6MjA4NzE4OTQxMn0.J_-MKrYBavjK71sj2sRz8aEqcl7KQ_1IhnYveLRGcME';
+const CLINKCARGO_SUPABASE_URL = 'https://dyaebyyhlscujqpnjeuf.supabase.co';
+const CLINKCARGO_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR5YWVieXlobHNjdWpxcG5qZXVmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ5MDk0NDUsImV4cCI6MjA5MDQ4NTQ0NX0.9xS9M6J6pQvjZymbIvmQv-daMgZaVweWCdqqvnAYlD8';
+const ZOCALOTRADE_API_KEY = 'pk_live_zocalotrade_ce9d9bf3ff15a9f38e37d30c813373c82d2f40ed5b80545da73f49c5a3d151f5';
 
-const clinkcargoClient = createClient(CLINKCARGO_SUPABASE_URL, CLINKCARGO_ANON_KEY);
+const clinkcargoClient = createClient(CLINKCARGO_SUPABASE_URL, CLINKCARGO_ANON_KEY, {
+    global: {
+        headers: {
+            'x-api-key': ZOCALOTRADE_API_KEY,
+        },
+    },
+});
 
 export type VehicleType = 
     | 'motorcycle'      
@@ -11,6 +18,7 @@ export type VehicleType =
     | 'scooter'        
     | 'car'            
     | 'van'            
+    | 'van_refrigerated'
     | 'truck_small'    
     | 'truck_medium'   
     | 'truck_large'   
@@ -19,19 +27,22 @@ export type VehicleType =
     | 'tow_truck'      
     | 'special';
 
-export const VEHICLE_TYPES: Record<VehicleType, { name: string; basePrice: number; pricePerKm: number; maxWeightKg: number }> = {
-    motorcycle: { name: 'Motocicleta', basePrice: 30, pricePerKm: 8, maxWeightKg: 50 },
-    bicycle: { name: 'Bicicleta', basePrice: 15, pricePerKm: 5, maxWeightKg: 20 },
-    scooter: { name: 'Scooter', basePrice: 20, pricePerKm: 6, maxWeightKg: 30 },
-    car: { name: 'Automóvil/Camioneta', basePrice: 50, pricePerKm: 12, maxWeightKg: 500 },
-    van: { name: 'Furgoneta', basePrice: 80, pricePerKm: 18, maxWeightKg: 1000 },
-    truck_small: { name: 'Camión 3.5 Ton', basePrice: 150, pricePerKm: 22, maxWeightKg: 3500 },
-    truck_medium: { name: 'Camión 5 Ton', basePrice: 200, pricePerKm: 28, maxWeightKg: 5000 },
-    truck_large: { name: 'Camión 10+ Ton', basePrice: 350, pricePerKm: 35, maxWeightKg: 15000 },
-    crane: { name: 'Grúa/Plataforma', basePrice: 200, pricePerKm: 25, maxWeightKg: 2000 },
-    flatbed: { name: 'Plataforma/Madrina', basePrice: 300, pricePerKm: 30, maxWeightKg: 5000 },
-    tow_truck: { name: 'Grúa de Rescate', basePrice: 180, pricePerKm: 20, maxWeightKg: 3000 },
-    special: { name: 'Vehículo Especial', basePrice: 400, pricePerKm: 40, maxWeightKg: 20000 },
+export type ServiceType = 'mercancia' | 'vehiculos' | 'mudanza' | 'perecedero';
+
+export const VEHICLE_TYPES: Record<VehicleType, { name: string; basePrice: number; pricePerKm: number; maxWeightKg: number; serviceType: ServiceType }> = {
+    motorcycle: { name: 'Motocicleta', basePrice: 30, pricePerKm: 8, maxWeightKg: 50, serviceType: 'mercancia' },
+    bicycle: { name: 'Bicicleta', basePrice: 15, pricePerKm: 5, maxWeightKg: 20, serviceType: 'mudanza' },
+    scooter: { name: 'Scooter', basePrice: 20, pricePerKm: 6, maxWeightKg: 30, serviceType: 'mudanza' },
+    car: { name: 'Automóvil/Camioneta', basePrice: 50, pricePerKm: 12, maxWeightKg: 500, serviceType: 'mercancia' },
+    van: { name: 'Furgoneta', basePrice: 80, pricePerKm: 18, maxWeightKg: 1000, serviceType: 'mercancia' },
+    van_refrigerated: { name: 'Furgoneta Refrigerada', basePrice: 120, pricePerKm: 25, maxWeightKg: 800, serviceType: 'perecedero' },
+    truck_small: { name: 'Camión 3.5 Ton', basePrice: 150, pricePerKm: 22, maxWeightKg: 3500, serviceType: 'mercancia' },
+    truck_medium: { name: 'Camión 5 Ton', basePrice: 200, pricePerKm: 28, maxWeightKg: 5000, serviceType: 'mudanza' },
+    truck_large: { name: 'Camión 10+ Ton', basePrice: 350, pricePerKm: 35, maxWeightKg: 15000, serviceType: 'mudanza' },
+    crane: { name: 'Grúa/Plataforma', basePrice: 200, pricePerKm: 25, maxWeightKg: 2000, serviceType: 'vehiculos' },
+    flatbed: { name: 'Plataforma/Madrina', basePrice: 300, pricePerKm: 30, maxWeightKg: 5000, serviceType: 'vehiculos' },
+    tow_truck: { name: 'Grúa de Rescate', basePrice: 180, pricePerKm: 20, maxWeightKg: 3000, serviceType: 'vehiculos' },
+    special: { name: 'Vehículo Especial', basePrice: 400, pricePerKm: 40, maxWeightKg: 20000, serviceType: 'mudanza' },
 };
 
 export interface ClincKargoOrder {
@@ -102,7 +113,7 @@ export async function createClincKargoOrder(payload: ZocaloToClincKargoPayload):
             size: item.size,
             quantity: item.quantity,
             weight_kg: item.peso || mapProductSizeToWeight(item.size),
-            temperatureRequirement: 'none' as const
+            temperature_requirement: 'none'
         }));
 
         const totalWeight = items.reduce((sum, item) => sum + (item.weight_kg || 10) * item.quantity, 0);
@@ -113,14 +124,16 @@ export async function createClincKargoOrder(payload: ZocaloToClincKargoPayload):
         const estimatedDistance = 10;
         const estimatedPrice = vehicleConfig.basePrice + (estimatedDistance * vehicleConfig.pricePerKm);
 
-        const orderData: ClincKargoOrder = {
+        const orderData = {
             status: 'searching',
-            service_type: 'direct',
+            service_type: vehicleConfig.serviceType,
             pickup_address: payload.pickupAddress,
             dropoff_address: payload.dropoffAddress,
-            price: estimatedPrice,
+            pickup_coordinates: payload.pickupCoordinates,
+            dropoff_coordinates: payload.dropoffCoordinates,
+            price: Math.round(estimatedPrice * 116) / 100,
             distance: estimatedDistance,
-            requires_cold_chain: false,
+            requires_cold_chain: vehicleConfig.serviceType === 'perecedero',
             vehicle_type_needed: vehicleType,
             waypoints: [
                 {
