@@ -235,48 +235,32 @@ export async function quoteTransport(
     pickupCoordinates: { lat: number; lng: number },
     dropoffCoordinates: { lat: number; lng: number },
     items: Array<{ name: string; size: string; quantity: number }>
-): Promise<TransportQuote | null> {
+): Promise<TransportQuote[]> {
     try {
-        const R = 6371;
-        const dLat = (dropoffCoordinates.lat - pickupCoordinates.lat) * Math.PI / 180;
-        const dLon = (dropoffCoordinates.lng - pickupCoordinates.lng) * Math.PI / 180;
-        const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
-            Math.cos(pickupCoordinates.lat * Math.PI / 180) * Math.cos(dropoffCoordinates.lat * Math.PI / 180) *
-            Math.sin(dLon/2) * Math.sin(dLon/2);
-        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-        const distance = Math.round(R * c);
-
-        const totalWeight = items.reduce((sum, item) => {
-            return sum + mapProductSizeToWeight(item.size) * item.quantity;
-        }, 0);
-
-        const vehicleType = selectAppropriateVehicle(totalWeight);
-        const vehicleConfig = VEHICLE_TYPES[vehicleType];
-
-        const basePrice = vehicleConfig.basePrice;
-        const distancePrice = distance * vehicleConfig.pricePerKm;
-        const subtotal = basePrice + distancePrice;
-        const iva = subtotal * 0.16;
-        const total = subtotal + iva;
-        const estimatedTime = Math.round(distance / 30 * 60);
-
-        return {
-            price: Math.round(total * 100) / 100,
-            distance,
-            estimatedTime,
-            vehicleType,
-            vehicleName: vehicleConfig.name,
-            breakdown: {
-                basePrice,
-                distancePrice,
-                subtotal,
-                iva,
-                total: Math.round(total * 100) / 100
+        const { data, error } = await clinkcargoClient.functions.invoke('get-clinckargo-quotes', {
+            body: {
+                pickup_coordinates: pickupCoordinates,
+                dropoff_coordinates: dropoffCoordinates,
+                service_type: 'mercancia'
             }
-        };
+        });
+
+        if (error || !data?.quotes) {
+            console.error('Quote error:', error);
+            return [];
+        }
+
+        return data.quotes.map((q: any) => ({
+            price: q.price,
+            distance: q.distance,
+            estimatedTime: q.estimatedTimeMinutes,
+            vehicleType: q.vehicleType,
+            vehicleName: q.vehicleName,
+            breakdown: q.breakdown
+        }));
     } catch (err) {
         console.error('Quote error:', err);
-        return null;
+        return [];
     }
 }
 
