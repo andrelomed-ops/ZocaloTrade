@@ -11,7 +11,7 @@ export default function CheckoutScreen() {
   const [sugerencias, setSugerencias] = useState<DireccionSugerida[]>([]);
   const [mostrarSugerencias, setMostrarSugerencias] = useState(false);
   const [costoEnvioInfo, setCostoEnvioInfo] = useState<CostoEnvio | null>(null);
-  const [transportQuote, setTransportQuote] = useState<TransportQuote | null>(null);
+  const [transportQuotes, setTransportQuotes] = useState<TransportQuote[]>([]);
   const [cargandoUbicacion, setCargandoUbicacion] = useState(false);
   const [confirmando, setConfirmando] = useState(false);
   const [tiendaSeleccionada, setTiendaSeleccionada] = useState<any>(null);
@@ -252,13 +252,14 @@ export default function CheckoutScreen() {
                     quantity: item.cantidad
                   }));
                   
-                  const quote = await quoteTransport(tiendaUbicacion, ubicacion, items);
-                  if (quote) {
-                    setTransportQuote(quote);
+                  const quotesData = await quoteTransport(tiendaUbicacion, ubicacion, items);
+                  if (quotesData && quotesData.length > 0) {
+                    setTransportQuotes(quotesData);
+                    const bestQuote = quotesData[0];
                     setCostoEnvioInfo({
-                      costo: quote.price,
-                      distancia: quote.distance,
-                      zona: quote.vehicleName
+                      costo: bestQuote.price,
+                      distancia: bestQuote.distance,
+                      zona: bestQuote.vehicleName
                     });
                   }
                 } else {
